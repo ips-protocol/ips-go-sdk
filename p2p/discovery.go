@@ -5,8 +5,11 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/libp2p/go-libp2p"
+	circuit "github.com/libp2p/go-libp2p-circuit"
 	"github.com/libp2p/go-libp2p-crypto"
+	host "github.com/libp2p/go-libp2p-host"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
+	pstoremem "github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"github.com/multiformats/go-multiaddr"
 )
 
@@ -30,7 +33,7 @@ func RmFromActivePeers(p pstore.PeerInfo) {
 	return
 }
 
-func FindPeers(c Config) (peers chan pstore.PeerInfo, err error) {
+func FindPeers(c Config) (peers chan pstore.PeerInfo, host2 host.Host, err error) {
 
 	r := rand.Reader
 	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
@@ -38,15 +41,22 @@ func FindPeers(c Config) (peers chan pstore.PeerInfo, err error) {
 		return
 	}
 	ctx := context.Background()
+
+	libp2pOpts := []libp2p.Option{}
+	relayOpts := []circuit.RelayOpt{circuit.OptDiscovery}
+	relayOpts = append(relayOpts, circuit.OptHop)
+	libp2pOpts = append(libp2pOpts, libp2p.EnableRelay(relayOpts...))
 	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", c.ListenHost, c.ListenPort))
+
+	libp2pOpts = append(libp2pOpts, []libp2p.Option{libp2p.ListenAddrs(sourceMultiAddr), libp2p.Identity(prvKey), libp2p.Peerstore(pstoremem.NewPeerstore())}...)
+
 	host, err := libp2p.New(
 		ctx,
-		libp2p.ListenAddrs(sourceMultiAddr),
-		libp2p.Identity(prvKey),
+		libp2pOpts...,
 	)
 	if err != nil {
 		return
 	}
 
-	return initMDNS(ctx, host, c.RendezvousString), nil
+	return initMDNS(ctx, host, c.RendezvousString), host, nil
 }

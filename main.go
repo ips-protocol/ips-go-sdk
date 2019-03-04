@@ -14,7 +14,8 @@ func main() {
 		ListenHost:       "0.0.0.0",
 		ListenPort:       9999,
 	}
-	ps, err := p2p.FindPeers(cfg)
+
+	ps, host, err := p2p.FindPeers(cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -36,6 +37,7 @@ func main() {
 	for {
 		fmt.Println("==>:", len(peers))
 		fmt.Println("==>:", len(p2p.GetActivePeers()))
+		fmt.Println("net work peers ==>:", host.Network().Conns())
 		time.Sleep(time.Second)
 	}
 	select {} //wait here
