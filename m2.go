@@ -36,10 +36,10 @@ func main() {
 	}
 
 	for {
-		//ps := n.Peerstore.Peers()
-		//for _, p := range ps {
-		//	fmt.Println("---->", p.Pretty())
-		//}
+		ps := n.Peerstore.Peers()
+		for _, p := range ps {
+			fmt.Println("---->", p.Pretty())
+		}
 		//fmt.Println("count ====>", len(ps))
 		//time.Sleep(time.Second)
 
