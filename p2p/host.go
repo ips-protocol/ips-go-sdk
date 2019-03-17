@@ -29,17 +29,20 @@ func DefaultRepo(dstore repo.Datastore) (repo.Repo, error) {
 		return nil, err
 	}
 
-	c.Bootstrap = cfg.DefaultBootstrapAddresses
+	//c.Bootstrap = cfg.DefaultBootstrapAddresses
+	c.Bootstrap = []string{"/ip4/47.90.246.175/tcp/4001/ipfs/QmamEgmvzTLvfvhDepXSgfaFQcbnihSo7ASakfqmJMTXtq"}
 	c.Addresses.Swarm = []string{"/ip4/0.0.0.0/tcp/4001"}
 	c.Identity.PeerID = pid.Pretty()
 	c.Identity.PrivKey = base64.StdEncoding.EncodeToString(privkeyb)
 	c.Discovery.MDNS.Enabled = true
 	c.Discovery.MDNS.Interval = 1
 
-	return &repo.Mock{
+	mockRepo := &repo.Mock{
 		D: dstore,
 		C: c,
-	}, nil
+	}
+
+	return Repo{mockRepo}, nil
 }
 
 func Ctx(node *core.IpfsNode, repoPath string) commands.Context {
