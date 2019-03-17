@@ -33,8 +33,12 @@ func main() {
 		//	"mplex":  true,  //opt,	true|false
 		//}, //opt
 	}
+	n, err := core.NewNode(ctx, ncfg)
+	if err != nil {
+		panic(err)
+	}
 
-	cli, err := rpc.NewClient(ctx, ncfg)
+	cli, err := rpc.NewClient(n)
 	if err != nil {
 		panic(err)
 	}

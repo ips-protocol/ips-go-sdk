@@ -104,38 +104,25 @@ func (m *BlockMgr) SplitFile(fname string) (rcs []io.ReadCloser, err error) {
 	return
 }
 
-func (m *BlockMgr) SplitFile2(fname string) (rcs []io.Reader, err error) {
+func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader, err error) {
 
-	f, err := os.Open(fname)
-	if err != nil {
-		return
-	}
-
-	fstat, err := f.Stat()
-	if err != nil {
-		return
-	}
-	//defer f.Close()
-
-	fsize := fstat.Size()
 	shards := m.DataShards + m.ParShards
-
-	perShard := (fsize + int64(m.DataShards) - 1) / int64(m.DataShards)
-	padding := make([]byte, (int64(shards)*perShard)-fsize)
-	data := io.MultiReader(f, bytes.NewBuffer(padding))
+	perShard := (size + int64(m.DataShards) - 1) / int64(m.DataShards)
+	padding := make([]byte, (int64(shards)*perShard)-size)
+	data := io.MultiReader(reader, bytes.NewBuffer(padding))
 
 	rs := make([]io.Reader, m.DataShards)
 	parWs := make([]io.Writer, m.ParShards)
-	rcs = make([]io.Reader, shards)
-	for i := range rcs {
-		buf := bytes.NewBuffer(nil)
+	shardsRdr = make([]io.Reader, shards)
+	for i := range shardsRdr {
+		buf := &bytes.Buffer{}
 		if i < m.DataShards {
 			r := io.LimitReader(data, perShard)
-			rcs[i] = io.TeeReader(r, buf)
-			rs[i] = buf
+			rs[i] = io.TeeReader(r, buf)
+			shardsRdr[i] = buf
 		} else {
 			parWs[i-m.DataShards] = buf
-			rcs[i] = buf
+			shardsRdr[i] = buf
 		}
 	}
 
@@ -146,11 +133,6 @@ func (m *BlockMgr) SplitFile2(fname string) (rcs []io.Reader, err error) {
 
 	return
 }
-
-//func (r BlockMgr) Split(data io.Reader, dst []io.Writer, size int64) error {
-//
-//	return nil
-//}
 
 //func (m *BlockMgr) ConcatFile(fname string) (rcs []io.ReadCloser, err error) {
 //
