@@ -1,8 +1,10 @@
 package file
 
 import (
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -48,4 +50,13 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.Equal(t, nil, err)
 
+	//test shards join
+	f.Seek(0, io.SeekStart)
+
+	rs2, _ := blockMgr.ECShards(f, fi.Size())
+	fileContent, err := ioutil.ReadAll(f)
+	assert.Equal(t, nil, err)
+	fileContent2 := bytes.NewBuffer(nil)
+	blockMgr.Join(fileContent2, rs2, fi.Size())
+	bytes.Equal(fileContent2.Bytes(), fileContent)
 }

@@ -133,7 +133,3 @@ func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader
 
 	return
 }
-
-//func (m *BlockMgr) ConcatFile(fname string) (rcs []io.ReadCloser, err error) {
-//
-//}
