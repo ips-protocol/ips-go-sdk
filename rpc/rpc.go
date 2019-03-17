@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -28,12 +27,10 @@ type Client struct {
 	*core.IpfsNode
 }
 
-func NewClient(ctx context.Context, cfg *core.BuildCfg) (cli *Client, err error) {
-	n, err := core.NewNode(ctx, cfg)
-	if err != nil {
-		return
-	}
-	cli = &Client{IpfsNode: n}
+func NewClient(node *core.IpfsNode) (cli *Client, err error) {
+	cli = &Client{IpfsNode: node}
+	cli.IpfsClients = make(map[string]*shell.Shell)
+	cli.NodesRefreshInterval = time.Second
 	return
 }
 
@@ -48,49 +45,87 @@ func (c *Client) Upload(r io.Reader) (cid string, err error) {
 }
 
 func (c *Client) GetIpfsClients() (ss []*shell.Shell, err error) {
-	addrs, err := c.GetLocalAddrs()
+
+	if !c.needRefresh() {
+		ss = c.getIpfsClients()
+		return
+	}
+
+	err = c.refreshIpfsClients()
 	if err == ErrNodeNotFound {
 		time.Sleep(time.Second * 3)
-		addrs, err = c.GetLocalAddrs()
+		err = c.refreshIpfsClients()
 	}
 	if err != nil {
 		return
 	}
 
-	for i := range addrs {
-		s := shell.NewShell(addrs[i])
-		ss = append(ss, s)
+	ss = c.getIpfsClients()
+	return
+}
+
+func (c *Client) getIpfsClients() (ss []*shell.Shell) {
+	for _, ic := range c.IpfsClients {
+		ss = append(ss, ic)
 	}
 
 	return
 }
 
-func (c *Client) GetLocalAddrs() (addrs map[string]string, err error) {
+func (c *Client) needRefresh() bool {
+	timeOut := c.NodesRefreshTime.Add(c.NodesRefreshInterval).Before(time.Now())
+	if timeOut || len(c.IpfsClients) == 0 {
+		return true
+	}
+	return false
+}
 
+func (c *Client) refreshIpfsClients() error {
+
+	clients := make(map[string]*shell.Shell)
 	ps := c.IpfsNode.Peerstore.Peers()
 	for _, p := range ps {
 		fmt.Println("peer: ---->", p.Pretty())
-		port, err := GetFreePort()
-		if err != nil {
-			return nil, err
-		}
 
 		id := p.Pretty()
-		if isP2PNode(id) {
-			err = c.P2PForward(port, id)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			addrs[id] = localAddr(port)
+		if !isP2PNode(id) {
+			continue
 		}
+
+		cli, ok := c.IpfsClients[id]
+		if ok {
+			clients[id] = cli
+			continue
+		}
+
+		port, err := GetFreePort()
+		if err != nil {
+			return err
+		}
+
+		err = c.P2PForward(port, id)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		clients[id] = shell.NewShell(localAddr(port))
 	}
 
-	if len(addrs) == 0 {
-		err = ErrNodeNotFound
+	for id := range c.IpfsClients {
+		if _, ok := clients[id]; ok {
+			continue
+		}
+
+		c.P2PClose(0, id)
 	}
 
-	return
+	if len(clients) == 0 {
+		return ErrNodeNotFound
+	}
+
+	c.IpfsClients = clients
+	return nil
 }
 
 func localAddr(port int) string {
