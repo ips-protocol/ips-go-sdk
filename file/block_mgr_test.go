@@ -12,7 +12,7 @@ import (
 var blockMgr *BlockMgr
 
 func init() {
-	cfg := Config{4, 2}
+	cfg := Config{DataShards: 4, ParShards: 2}
 	var err error
 	blockMgr, err = NewBlockMgr(cfg)
 	if err != nil {
@@ -45,7 +45,8 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	fi, err := f.Stat()
 	assert.Equal(t, nil, err)
 
-	rs, err := blockMgr.ECShards(f, fi.Size())
+	meta := []byte("abcd")
+	rs, err := blockMgr.ECShards(f, meta, fi.Size())
 	ok, err = blockMgr.Verify(rs)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, nil, err)
@@ -53,7 +54,7 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	//test shards join
 	f.Seek(0, io.SeekStart)
 
-	rs2, _ := blockMgr.ECShards(f, fi.Size())
+	rs2, _ := blockMgr.ECShards(f, nil, fi.Size())
 	fileContent, err := ioutil.ReadAll(f)
 	assert.Equal(t, nil, err)
 	fileContent2 := bytes.NewBuffer(nil)

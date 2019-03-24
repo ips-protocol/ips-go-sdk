@@ -1,13 +1,17 @@
 package rpc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"go-sdk/contract"
+	"go-sdk/file"
 	"io"
 	"log"
 	"net"
+	"os"
+	"path"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/ipfs/go-ipfs-api"
@@ -23,7 +27,8 @@ type Client struct {
 	IpfsClients          map[string]*shell.Shell
 	NodesRefreshTime     time.Time
 	NodesRefreshInterval time.Duration
-	NodesAccLock         sync.RWMutex
+	contract.Client
+	contract.StorageAccount
 	*core.IpfsNode
 }
 
@@ -34,13 +39,83 @@ func NewClient(node *core.IpfsNode) (cli *Client, err error) {
 	return
 }
 
-func (c *Client) Upload(r io.Reader) (cid string, err error) {
-	ss, err := c.GetIpfsClients()
+func (c *Client) Upload(fpath string) (cid string, err error) {
+
+	fname := path.Base(fpath)
+	fh, err := os.Open(fpath)
+	if err != nil {
+		return
+	}
+	fi, err := fh.Stat()
 	if err != nil {
 		return
 	}
 
-	cid, err = ss[0].Add(r)
+	cid, err = file.GetCID(nil)
+	if err != nil {
+		return
+	}
+
+	metaEx := file.MetaEx{
+		FName: fname,
+		FSize: fi.Size(),
+		FHash: cid,
+	}
+
+	metaExB, err := json.Marshal(metaEx)
+	if err != nil {
+		return
+	}
+	totalMetaLength := len(metaExB) + file.MetaBytes
+	dataShards, parShards := file.BlockCount(totalMetaLength, fi.Size(), 1/3)
+	totalDataLength := int64(dataShards*totalMetaLength) + fi.Size()
+	getMeta := func(i int) []byte {
+		meta := file.Meta{
+			DataShards:   uint32(dataShards),
+			ParShards:    uint32(parShards),
+			BlockIdx:     uint32(i),
+			MetaExLength: uint32(len(metaExB)),
+		}
+		metaBytes := file.EncodeMeta(&meta)
+		metaBytes = append(metaBytes, metaExB...)
+		return metaBytes
+	}
+
+	cfg := file.Config{DataShards: dataShards, ParShards: parShards}
+	mgr, err := file.NewBlockMgr(cfg)
+	if err != nil {
+		return
+	}
+
+	shardsRdr, err := mgr.ECShards(fh, getMeta, totalDataLength)
+	if err != nil {
+		return
+	}
+
+	nodes, err := c.GetIpfsClients()
+	if err != nil {
+		return
+	}
+
+	for i := range shardsRdr {
+		nodeIdx := i % len(nodes)
+		_, err = nodes[nodeIdx].Add(shardsRdr[i])
+		if err != nil {
+			return
+		}
+	}
+
+	_, err = c.NewUploadJob(cid, uint64(totalDataLength), uint64(dataShards+parShards), 0)
+	return
+}
+
+func (c *Client) Download(hash string) (rc io.ReadCloser, meta file.MetaAll, err error) {
+	nodes, err := c.GetIpfsClients()
+	if err != nil {
+		return
+	}
+
+	//cid, err = ss[0].Get()
 	return
 }
 

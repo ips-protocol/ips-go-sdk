@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 
 	"github.com/klauspost/reedsolomon"
@@ -12,9 +13,12 @@ import (
 
 var ErrShortData = errors.New("short data")
 
+const DefaultBlockSize = 1 << 26 //64MB
+
 type Config struct {
 	DataShards int `json:"data_shards"`
 	ParShards  int `json:"par_shards"`
+	BlockSize  int `json:"block_size"`
 }
 
 type BlockMgr struct {
@@ -104,7 +108,7 @@ func (m *BlockMgr) SplitFile(fname string) (rcs []io.ReadCloser, err error) {
 	return
 }
 
-func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader, err error) {
+func (m *BlockMgr) ECShards(reader io.Reader, getMeta func(int) []byte, size int64) (shardsRdr []io.Reader, err error) {
 
 	shards := m.DataShards + m.ParShards
 	perShard := (size + int64(m.DataShards) - 1) / int64(m.DataShards)
@@ -117,7 +121,9 @@ func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader
 	for i := range shardsRdr {
 		buf := &bytes.Buffer{}
 		if i < m.DataShards {
-			r := io.LimitReader(data, perShard)
+			meta := getMeta(i)
+			dataWithMeta := io.MultiReader(bytes.NewBuffer(meta), data)
+			r := io.LimitReader(dataWithMeta, perShard)
 			rs[i] = io.TeeReader(r, buf)
 			shardsRdr[i] = buf
 		} else {
@@ -131,5 +137,12 @@ func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader
 		return
 	}
 
+	return
+}
+
+func BlockCount(metaSize int, fsize int64, redundancyRate float64) (dataShards, parShards int) {
+	blockDataSize := DefaultBlockSize - metaSize
+	dataShards = int((fsize + int64(blockDataSize) - 1) / int64(blockDataSize))
+	parShards = int(math.Ceil(float64(dataShards) * redundancyRate))
 	return
 }
