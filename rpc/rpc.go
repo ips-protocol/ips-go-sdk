@@ -1,13 +1,16 @@
 package rpc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go-sdk/contract"
 	"go-sdk/file"
 	"io"
+	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"path"
@@ -109,13 +112,89 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	return
 }
 
-func (c *Client) Download(hash string) (rc io.ReadCloser, meta file.MetaAll, err error) {
+func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, err error) {
+	blockHash, peerInfo, err := c.GetBlockInfo(0)
+	if err != nil {
+		return
+	}
+
+	node, err := c.getIpfsClientOrRandom(peerInfo)
+	if err != nil {
+		return
+	}
+
+	rc1, err := ReadAt(node, blockHash, 0, file.MetaBytes)
+	if err != nil {
+		return
+	}
+	defer rc1.Close()
+	metaB, err := ioutil.ReadAll(rc1)
+	if err != nil {
+		return
+	}
+	meta, err := file.DecodeMeta(metaB)
+	if err != nil {
+		return
+	}
+
+	rc2, err := ReadAt(node, blockHash, file.MetaBytes, int64(meta.MetaExLength))
+	if err != nil {
+		return
+	}
+	defer rc2.Close()
+	metaExB, err := ioutil.ReadAll(rc2)
+	if err != nil {
+		return
+	}
+	metaEx := file.MetaEx{}
+	err = json.Unmarshal(metaExB, &metaEx)
+	if err != nil {
+		return
+	}
+	metaAll = file.MetaAll{Meta: *meta, MetaEx: metaEx}
+
+	//metaAllLength := file.MetaBytes + meta.MetaExLength
+
+	return
+}
+
+func ReadAt(node *shell.Shell, fp string, offset, count int64) (rc io.ReadCloser, err error) {
+	resp, err := node.Request("files/read", fp).Option("offset", offset).
+		Option("count", count).Send(context.Background())
+	if err != nil {
+		return
+	}
+	rc = resp.Output
+	return
+}
+
+func (c *Client) getIpfsClientOrRandom(pId string) (node *shell.Shell, err error) {
+	node, exist := c.GetIpfsClient(pId)
+	if exist {
+		return
+	}
+
+	node, err = c.GetRandomIpfsClient()
+	return
+}
+
+func (c *Client) GetRandomIpfsClient() (node *shell.Shell, err error) {
 	nodes, err := c.GetIpfsClients()
 	if err != nil {
 		return
 	}
 
-	//cid, err = ss[0].Get()
+	rand.Seed(time.Now().Unix())
+	node = nodes[rand.Intn(len(nodes))]
+	return
+}
+
+func (c *Client) GetIpfsClient(pId string) (node *shell.Shell, exist bool) {
+	if c.needRefresh() {
+		c.refreshIpfsClients()
+	}
+
+	node, exist = c.IpfsClients[pId]
 	return
 }
 
