@@ -19,6 +19,7 @@ import (
 
 	"github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
+	"github.com/ironsmile/nedomi/utils"
 	"go-sdk/p2p"
 )
 
@@ -113,15 +114,40 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 }
 
 func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, err error) {
-	blockHash, peerInfo, err := c.GetBlockInfo(0)
+	blocksHash, peersInfo, err := c.GetAllBlocksInfo()
 	if err != nil {
 		return
 	}
 
-	node, err := c.getIpfsClientOrRandom(peerInfo)
+	node, err := c.getIpfsClientOrRandom(peersInfo[0])
 	if err != nil {
 		return
 	}
+
+	metaAll, err = GetMeta(node, blocksHash[0])
+	if err != nil {
+		return
+	}
+
+	metaAllLength := file.MetaBytes + metaAll.MetaExLength
+	dataShards := int(metaAll.DataShards)
+	rcs := make([]io.ReadCloser, dataShards)
+	for i := 0; i < dataShards; i++ {
+		node, err = c.getIpfsClientOrRandom(peersInfo[i])
+		if err != nil {
+			return
+		}
+		rc3, err := ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
+		if err != nil {
+			return
+		}
+		rcs[i] = rc3
+	}
+	rc = utils.MultiReadCloser(rcs...)
+	return
+}
+
+func GetMeta(node *shell.Shell, blockHash string) (metaAll file.MetaAll, err error) {
 
 	rc1, err := ReadAt(node, blockHash, 0, file.MetaBytes)
 	if err != nil {
@@ -152,15 +178,18 @@ func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, 
 		return
 	}
 	metaAll = file.MetaAll{Meta: *meta, MetaEx: metaEx}
-
-	//metaAllLength := file.MetaBytes + meta.MetaExLength
-
 	return
 }
 
 func ReadAt(node *shell.Shell, fp string, offset, count int64) (rc io.ReadCloser, err error) {
-	resp, err := node.Request("files/read", fp).Option("offset", offset).
-		Option("count", count).Send(context.Background())
+	req := node.Request("files/read", fp)
+	if offset != 0 {
+		req.Option("offset", offset)
+	}
+	if count != 0 {
+		req.Option("count", count)
+	}
+	resp, err := req.Send(context.Background())
 	if err != nil {
 		return
 	}
