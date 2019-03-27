@@ -3,13 +3,15 @@ package p2p
 import (
 	"crypto/rand"
 	"encoding/base64"
+	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+
+	cfg "github.com/ipfs/go-ipfs/config"
+
 	"github.com/ipfs/go-ipfs/commands"
+	"github.com/ipfs/go-ipfs/config"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo"
-	ci "gx/ipfs/QmNiJiXwWE3kRhZrC5ej3kSjWHm337pYfhjLGSCDNKJP2s/go-libp2p-crypto"
-	"gx/ipfs/QmPJxxDsX2UbchSHobbYuvz7qnyJTFKvaKMzE2rZWJ4x5B/go-libp2p-peer"
-	"gx/ipfs/QmTbcMKv6GU3fxhnNcbzYChdox9Fdd7VpucM3PQ7UWjX3D/go-ipfs-config"
-	cfg "gx/ipfs/QmTbcMKv6GU3fxhnNcbzYChdox9Fdd7VpucM3PQ7UWjX3D/go-ipfs-config"
 )
 
 func DefaultRepo(dstore repo.Datastore) (repo.Repo, error) {
@@ -29,13 +31,13 @@ func DefaultRepo(dstore repo.Datastore) (repo.Repo, error) {
 		return nil, err
 	}
 
-	//c.Bootstrap = cfg.DefaultBootstrapAddresses
-	c.Bootstrap = []string{"/ip4/47.90.246.175/tcp/4001/ipfs/QmamEgmvzTLvfvhDepXSgfaFQcbnihSo7ASakfqmJMTXtq"}
+	c.Bootstrap = cfg.DefaultBootstrapAddresses
 	c.Addresses.Swarm = []string{"/ip4/0.0.0.0/tcp/4001"}
 	c.Identity.PeerID = pid.Pretty()
 	c.Identity.PrivKey = base64.StdEncoding.EncodeToString(privkeyb)
 	c.Discovery.MDNS.Enabled = true
 	c.Discovery.MDNS.Interval = 1
+	c.Routing.Type = "dhtclient"
 
 	mockRepo := &repo.Mock{
 		D: dstore,

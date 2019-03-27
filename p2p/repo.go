@@ -1,9 +1,10 @@
 package p2p
 
 import (
+	"fmt"
+
 	"github.com/ipfs/go-ipfs/repo"
-	"io/ioutil"
-	"os"
+	"github.com/ipfs/go-ipfs/repo/fsrepo"
 )
 
 type Repo struct {
@@ -11,10 +12,9 @@ type Repo struct {
 }
 
 func (m Repo) SwarmKey() (key []byte, err error) {
-	f, err := os.Open("/Users/wf/.ipfs/swarm.key")
-	if err != nil {
-		return
+	swarm := fsrepo.SwarmKey
+	if swarm == "" {
+		return nil, fmt.Errorf("not found SwarmKey")
 	}
-	key, err = ioutil.ReadAll(f)
-	return
+	return []byte(swarm), nil
 }
