@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ipfs/go-ipfs/core"
-	"go-sdk/p2p"
-	"go-sdk/rpc"
-	ds "gx/ipfs/Qmf4xQhNomPNhrtZc67qSnfJSjxjXs9LWvknJtSXwimPrM/go-datastore"
+	ds "gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
 	"os"
+
+	rpc "./rpc"
+
+	p2p "./p2p"
+
+	"github.com/ipfs/go-ipfs/core"
 )
 
 func main() {
@@ -32,6 +35,7 @@ func main() {
 		//	"ipnsps": false, //opt, false|false
 		//	"mplex":  true,  //opt,	true|false
 		//}, //opt
+		NilRepo: true,
 	}
 	n, err := core.NewNode(ctx, ncfg)
 	if err != nil {
@@ -49,7 +53,8 @@ func main() {
 	}
 	defer f.Close()
 
-	cid, err := cli.Upload(f)
+	// cid, err := cli.Upload(f)
+	cid, err := cli.Upload("/tmp/test.txt")
 	if err != nil {
 		panic(err)
 	}

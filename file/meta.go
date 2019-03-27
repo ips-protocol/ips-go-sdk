@@ -4,7 +4,8 @@ import (
 	"syscall"
 
 	"encoding/binary"
-	"go-sdk/utils/bytes"
+
+	bytes "../utils/bytes"
 )
 
 const MetaBytes = 16

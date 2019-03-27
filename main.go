@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	pstore "github.com/libp2p/go-libp2p-peerstore"
-	"go-sdk/p2p"
+	pstore "gx/ipfs/QmaCTz9RkrU13bm9kMB54f7atgqM4qkjDZpRwRoJiWXEqs/go-libp2p-peerstore"
 	"time"
+
+	p2p "./p2p"
 )
 
-func main() {
+func main1() {
 	cfg := p2p.Config{
 		RendezvousString: "_ipfs-discovery._udp",
 		ProtocolID:       "test/abc",

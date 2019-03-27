@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go-sdk/contract"
-	"go-sdk/file"
 	"io"
 	"io/ioutil"
 	"log"
@@ -17,10 +15,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ipfs/go-ipfs-api"
+	contract "../contract"
+	file "../file"
+
+	p2p "../p2p"
+
+	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ironsmile/nedomi/utils"
-	"go-sdk/p2p"
 )
 
 var ErrNodeNotFound = errors.New("node not found")
@@ -137,7 +139,8 @@ func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, 
 		if err != nil {
 			return
 		}
-		rc3, err := ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
+		var rc3 io.ReadCloser
+		rc3, err = ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
 		if err != nil {
 			return
 		}

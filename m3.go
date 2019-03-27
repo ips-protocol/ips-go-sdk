@@ -4,10 +4,11 @@ import (
 	//"bytes"
 	"encoding/binary"
 	"fmt"
-	"go-sdk/utils/bytes"
+
+	bytes "./utils/bytes"
 )
 
-func main() {
+func main3() {
 	// Create a cid manually by specifying the 'prefix' parameters
 	//pref := cid.Prefix{
 	//	Version:  0,
