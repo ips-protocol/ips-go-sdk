@@ -137,11 +137,11 @@ func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, 
 		if err != nil {
 			return
 		}
-		rc3, err := ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
+		rc1, err := ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
 		if err != nil {
 			return
 		}
-		rcs[i] = rc3
+		rcs[i] = rc1
 	}
 	rc = utils.MultiReadCloser(rcs...)
 	return
@@ -333,8 +333,8 @@ func (c *Client) P2PCloseAll() error {
 
 func isP2PNode(id string) bool {
 	nodes := map[string]bool{
-		"Qmain1GGsLNtPmDPJsmWGYv7QxyFnbTjvFceH16yC2PCRd": true,
-		"Qma2z1RDNNTH2NVpQbzaoZZs8CxHU9N881ZGKB4oZuabXw": true,
+		"Qmctjf76oDSKjLXS5QzNMbkDT4hVkSENRjpbaYn3dqeZ78": true,
+		"QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk": true,
 	}
 	_, ok := nodes[id]
 	return ok

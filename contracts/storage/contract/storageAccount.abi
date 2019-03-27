@@ -1,0 +1,97 @@
+[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "getAllBlocksInfo",
+		"outputs": [
+			{
+				"name": "blocksHash",
+				"type": "bytes32[]"
+			},
+			{
+				"name": "peersInfo",
+				"type": "bytes32[]"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "DownloadSuccess",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_fileAddress",
+				"type": "address"
+			},
+			{
+				"name": "index",
+				"type": "uint256"
+			},
+			{
+				"name": "hash",
+				"type": "bytes32"
+			},
+			{
+				"name": "peerInfo",
+				"type": "bytes32"
+			},
+			{
+				"name": "proof",
+				"type": "string"
+			}
+		],
+		"name": "CommitBlockInfo",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "getBlockInfo",
+		"outputs": [
+			{
+				"name": "blockHash",
+				"type": "bytes32"
+			},
+			{
+				"name": "peerInfo",
+				"type": "bytes32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"name": "_fileAddress",
+				"type": "address"
+			},
+			{
+				"name": "_block_nums",
+				"type": "uint128"
+			}
+		],
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "constructor"
+	}
+]

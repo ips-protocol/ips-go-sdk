@@ -6,6 +6,7 @@ import (
 	"github.com/ipfs/go-ipfs/core"
 	"go-sdk/p2p"
 	"go-sdk/rpc"
+	"gx/ipfs/QmVSbopkxvLSRFuUn1SeHoEcArhCLn2okUbVpLvhQ1pm1X/interface-go-ipfs-core"
 	ds "gx/ipfs/Qmf4xQhNomPNhrtZc67qSnfJSjxjXs9LWvknJtSXwimPrM/go-datastore"
 	"os"
 )
@@ -33,28 +34,29 @@ func main() {
 		//	"mplex":  true,  //opt,	true|false
 		//}, //opt
 	}
-	n, err := core.NewNode(ctx, ncfg)
-	if err != nil {
-		panic(err)
-	}
 
-	cli, err := rpc.NewClient(n)
-	if err != nil {
-		panic(err)
-	}
-
-	f, err := os.Open("/tmp/test.txt")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	cid, err := cli.Upload(f)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("-------->", cid)
+	// upload file ---------------------------------------------------------------------------------------------------
+	//n, err := core.NewNode(ctx, ncfg)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//cli, err := rpc.NewClient(n)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//f, err := os.Open("/tmp/test.txt")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//defer f.Close()
+	//
+	//cid, err := cli.Upload(f)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("-------->", cid)
 
 	// ---------------------------------------------------------------------------------------------------
 	//n, err := core.NewNode(ctx, ncfg)
@@ -80,31 +82,19 @@ func main() {
 	//	}
 	//}
 
-	//ctx1 := p2p.Ctx(n, "")
-	//api, err := ctx1.GetAPI()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//p, err := iface.ParsePath("QmVwyPQRKvoxvfxnVx2Y4BEitHFYDVtEqdqtspYGrVKAxF")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//fn, err := api.Unixfs().Get(ctx, p)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(fn)
-	//file, ok := fn.(files.File)
-	//if !ok {
-	//	panic("not file")
-	//}
-	//
-	//body := []byte{}
-	//size, err := file.Read(body)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("file size:", size, string(body))
+	// cacl cid ---------------------------------------------------------------------------------------------------
+	n, err := core.NewNode(ctx, ncfg)
+	if err != nil {
+		panic(err)
+	}
+	ctx1 := p2p.Ctx(n, "")
+	api, err := ctx1.GetAPI()
+	if err != nil {
+		panic(err)
+	}
+
+	fn, err := api.Unixfs().Add()
+	if err != nil {
+		panic(err)
+	}
 }

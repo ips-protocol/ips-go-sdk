@@ -1,0 +1,65 @@
+[
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "fileAddress",
+				"type": "address"
+			},
+			{
+				"name": "fsize",
+				"type": "uint256"
+			},
+			{
+				"name": "block_nums",
+				"type": "uint128"
+			}
+		],
+		"name": "newUploadJob",
+		"outputs": [],
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"name": "fileAddress",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"name": "storageAccount",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"name": "deposit",
+				"type": "uint256"
+			}
+		],
+		"name": "NewUploadJob",
+		"type": "event"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "fileAddress",
+				"type": "address"
+			}
+		],
+		"name": "getStorageAccount",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
