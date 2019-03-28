@@ -1,6 +1,7 @@
 pragma solidity ^0.4.25;
 
 
+
 contract StorageAccount{
 
     struct Block {
@@ -9,13 +10,13 @@ contract StorageAccount{
         address beneficiary;
     }
 
-    address fileAddress;
+    address public fileAddress;
     mapping(uint => Block[]) blocks;
     mapping(address => uint256) balance;
-    uint128 uploadedBlockNums;
-    uint128 blockNums;
-    uint downloadTotal;
-    uint initBalance;
+    uint128 public uploadedBlockNums;
+    uint128 public blockNums;
+    uint public downloadTotal;
+    uint public initBalance;
 
     constructor(address _fileAddress, uint128 _block_nums) public payable{
         fileAddress = _fileAddress;
@@ -24,7 +25,7 @@ contract StorageAccount{
     }
 
     // Save one block of the file and get some rewards.
-    function CommitBlockInfo(address _fileAddress, uint index, bytes32 hash, bytes32 peerInfo, string proof) public {
+    function commitBlockInfo(address _fileAddress, uint index, bytes32 hash, bytes32 peerInfo, string proof) public {
 
         require(index < blockNums);
         require(_fileAddress == fileAddress);
@@ -55,7 +56,14 @@ contract StorageAccount{
 	    return;
 	}
 
-	function DownloadSuccess() public  {
+	function getFileInfo() public view returns(address _fileAddress, uint _blockNums, uint _uploadedBlockNums) {
+	    _fileAddress = fileAddress;
+	    _blockNums = blockNums;
+	    _uploadedBlockNums = uploadedBlockNums;
+	    return;
+	}
+
+	function downloadSuccess() public  {
 
 	    downloadTotal++;
 	    if (downloadTotal > 10) {

@@ -12,9 +12,8 @@ import (
 var blockMgr *BlockMgr
 
 func init() {
-	cfg := Config{DataShards: 4, ParShards: 2}
 	var err error
-	blockMgr, err = NewBlockMgr(cfg)
+	blockMgr, err = NewBlockMgr(4, 2)
 	if err != nil {
 		panic(err)
 	}
@@ -45,8 +44,9 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	fi, err := f.Stat()
 	assert.Equal(t, nil, err)
 
-	meta := []byte("abcd")
-	rs, err := blockMgr.ECShards(f, meta, fi.Size())
+	rs, err := blockMgr.ECShards(f, func(i int) []byte {
+		return []byte("abcd")
+	}, fi.Size())
 	ok, err = blockMgr.Verify(rs)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, nil, err)

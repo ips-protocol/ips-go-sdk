@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,15 +53,20 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	if err != nil {
 		return
 	}
+	defer fh.Close()
+
 	fi, err := fh.Stat()
 	if err != nil {
 		return
 	}
 
-	cid, err = file.GetCID(nil)
-	if err != nil {
-		return
-	}
+	hs := md5.New()
+	freader := io.TeeReader(fh, hs)
+
+	//cid, err = file.GetCID(nil)
+	//if err != nil {
+	//	return
+	//}
 
 	metaEx := file.MetaEx{
 		FName: fname,
@@ -87,13 +93,12 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return metaBytes
 	}
 
-	cfg := file.Config{DataShards: dataShards, ParShards: parShards}
-	mgr, err := file.NewBlockMgr(cfg)
+	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
 		return
 	}
 
-	shardsRdr, err := mgr.ECShards(fh, getMeta, totalDataLength)
+	shardsRdr, err := mgr.ECShards(freader, getMeta, totalDataLength)
 	if err != nil {
 		return
 	}
@@ -110,6 +115,9 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 			return
 		}
 	}
+
+	//cid
+	cid = string(hs.Sum(nil))
 
 	_, err = c.NewUploadJob(cid, uint64(totalDataLength), uint64(dataShards+parShards), 0)
 	return
@@ -139,12 +147,7 @@ func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, 
 		if err != nil {
 			return
 		}
-<<<<<<< HEAD
 		rc1, err := ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
-=======
-		var rc3 io.ReadCloser
-		rc3, err = ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
->>>>>>> origin/master
 		if err != nil {
 			return
 		}

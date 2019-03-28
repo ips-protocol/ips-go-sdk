@@ -15,32 +15,27 @@ var ErrShortData = errors.New("short data")
 
 const DefaultBlockSize = 1 << 26 //64MB
 
-type Config struct {
-	DataShards int `json:"data_shards"`
-	ParShards  int `json:"par_shards"`
-	BlockSize  int `json:"block_size"`
-}
-
 type BlockMgr struct {
-	Config
+	DataShards int
+	ParShards  int
 	reedsolomon.StreamEncoder
 }
 
-func NewBlockMgr(cfg Config, o ...reedsolomon.Option) (mgr *BlockMgr, err error) {
+func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *BlockMgr, err error) {
 
-	dataShards := cfg.DataShards
 	if dataShards > 257 {
 		err = errors.New("too many data shards")
 		return
 	}
 
-	e, err := reedsolomon.NewStream(dataShards, cfg.ParShards, o...)
+	e, err := reedsolomon.NewStream(dataShards, parShards, o...)
 	if err != nil {
 		return
 	}
 
 	mgr = &BlockMgr{
-		Config:        cfg,
+		DataShards:    dataShards,
+		ParShards:     parShards,
 		StreamEncoder: e,
 	}
 	return

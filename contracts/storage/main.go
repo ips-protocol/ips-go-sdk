@@ -9,9 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/storage/contract"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"go-sdk/contracts/storage/contract"
 	"math/big"
 	"time"
 )
@@ -130,10 +130,9 @@ func NewUploadJob(addr common.Address) (*contract.StorageDepositNewUploadJob, er
 
 	fmt.Printf(`newUploadJob found:
 	fileAddress : %s
-	fsize : %d
 	deposit : %d
 	storageAccount : %s
-`, newUploadJob.FileAddress.Hex(), newUploadJob.Fsize, newUploadJob.Deposit, newUploadJob.StorageAccount.Hex())
+`, newUploadJob.FileAddress.Hex(), newUploadJob.Deposit, newUploadJob.StorageAccount.Hex())
 	return &newUploadJob, nil
 
 }
@@ -150,12 +149,16 @@ func GetCommitBlockInfo(addr common.Address) error {
 		return err
 	}
 
+	fileInfo, err := storageAccount.GetFileInfo(nil)
+	fmt.Println("fileInfo",fileInfo.BlockNums)
+
 	hash := crypto.Keccak256Hash([]byte("data"))
 	peer := crypto.Keccak256Hash([]byte("peer"))
 	for i := 0; i < 3; i++ {
 		fmt.Println("GetBlockInfo", i)
 		result, err := storageAccount.GetBlockInfo(nil, big.NewInt(int64(i)))
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
 		if result.BlockHash != hash {
