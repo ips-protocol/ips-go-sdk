@@ -6,6 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"go-sdk/conf"
+	"go-sdk/contracts/storage/contract"
+	"go-sdk/file"
+	"go-sdk/p2p"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,14 +21,10 @@ import (
 	"strconv"
 	"time"
 
-	contract "../contract"
-	file "../file"
-
-	p2p "../p2p"
-
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ironsmile/nedomi/utils"
+	"go-sdk/contracts/storage"
 )
 
 var ErrNodeNotFound = errors.New("node not found")
@@ -34,15 +35,22 @@ type Client struct {
 	IpfsClients          map[string]*shell.Shell
 	NodesRefreshTime     time.Time
 	NodesRefreshInterval time.Duration
-	contract.Client
-	contract.StorageAccount
+	*contract.StorageDepositNewUploadJob
 	*core.IpfsNode
 }
 
-func NewClient(node *core.IpfsNode) (cli *Client, err error) {
+func NewClient(cfg conf.Contract, node *core.IpfsNode) (cli *Client, err error) {
 	cli = &Client{IpfsNode: node}
 	cli.IpfsClients = make(map[string]*shell.Shell)
 	cli.NodesRefreshInterval = time.Second
+
+	storageDepositContractAddr := common.HexToAddress("0x0000000000000000000000000000000000000010")
+	job, err := storage.NewUploadJob(storageDepositContractAddr)
+	if err != nil {
+		return
+	}
+	cli.StorageDepositNewUploadJob = job
+
 	return
 }
 
