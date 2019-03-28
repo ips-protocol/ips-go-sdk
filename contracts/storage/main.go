@@ -3,15 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/contracts/storage/contract"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"go-sdk/contracts/storage/contract"
 	"math/big"
 	"time"
 )
@@ -35,10 +36,17 @@ var (
 	rpcUrl = "http://127.0.0.1:8545" // node rpc address
 )
 
+func Proof(data []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
+	hash := crypto.Keccak256(data)
+	return crypto.Sign(hash, prv)
+}
+
 func main() {
 
 	// show balance of testClientAddress and testStorageAddress
 	Status()
+
+	//DeployStorageDepositContract()
 
 	// client side new a upload job
 	job, err := NewUploadJob(storageDepositContractAddr)
@@ -60,6 +68,21 @@ func main() {
 	if err := DownloadSuccess(job.StorageAccount); err != nil {
 		panic(err)
 	}
+}
+
+func DeployStorageDepositContract() {
+	client, err := ethclient.Dial(rpcUrl)
+	if err != nil {
+		panic(err)
+	}
+	auth := bind.NewKeyedTransactor(testClientKey)
+	addr, tx, _, err := contract.DeployStorageDeposit(auth, client)
+	if err != nil {
+		panic(err)
+	}
+	wait(client, tx.Hash())
+	fmt.Println("storage deposit addr is", addr.Hex())
+	storageDepositContractAddr = addr
 }
 
 // Make sure balance is enough
@@ -150,7 +173,7 @@ func GetCommitBlockInfo(addr common.Address) error {
 	}
 
 	fileInfo, err := storageAccount.GetFileInfo(nil)
-	fmt.Println("fileInfo",fileInfo.BlockNums)
+	fmt.Println("fileInfo", fileInfo.BlockNums)
 
 	hash := crypto.Keccak256Hash([]byte("data"))
 	peer := crypto.Keccak256Hash([]byte("peer"))

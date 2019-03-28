@@ -1,5 +1,24 @@
 [
 	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "fileAddress",
+				"type": "address"
+			}
+		],
+		"name": "getStorageAccount",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"constant": false,
 		"inputs": [
 			{
@@ -25,7 +44,7 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
+				"indexed": false,
 				"name": "fileAddress",
 				"type": "address"
 			},
@@ -36,30 +55,16 @@
 			},
 			{
 				"indexed": false,
+				"name": "fsize",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
 				"name": "deposit",
 				"type": "uint256"
 			}
 		],
 		"name": "NewUploadJob",
 		"type": "event"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "fileAddress",
-				"type": "address"
-			}
-		],
-		"name": "getStorageAccount",
-		"outputs": [
-			{
-				"name": "",
-				"type": "address"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
 	}
 ]
