@@ -21,7 +21,6 @@ import (
 //go:generate abigen --abi contract/storageDeposit.abi --bin contract/storageDeposit.bin --type StorageDeposit --pkg contract --out contract/storageDeposit.go
 
 var (
-	//storageDepositContractAddr = common.HexToAddress("0x0000000000000000000000000000000000000010")
 
 	// client private Key, make sure its balance is enough
 	testClientKey, _  = crypto.HexToECDSA("92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C")
@@ -116,9 +115,10 @@ func NewUploadJob(addr common.Address) (*contract.StorageDepositNewUploadJob, er
 	if err != nil {
 		panic(err)
 	}
+	abc, _ := storageDeposit.GetStorageAccount(nil, "abc")
 
-	auth.GasLimit = 800000
-	auth.GasPrice = big.NewInt(1e9)
+	DownloadSuccess(abc)
+
 	auth.Value = big.NewInt(1e6)
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte("file content" + time.Now().String()))[0:20])
@@ -175,8 +175,8 @@ func GetCommitBlockInfo(addr common.Address) error {
 	fileInfo, err := storageAccount.GetFileInfo(nil)
 	fmt.Println("fileInfo", fileInfo.BlockNums)
 
-	hash := crypto.Keccak256Hash([]byte("data"))
-	peer := crypto.Keccak256Hash([]byte("peer"))
+	hash := append(crypto.Keccak256([]byte("data")), []byte("--")...)
+	peer := append(crypto.Keccak256([]byte("peer")), []byte("--")...)
 	for i := 0; i < 3; i++ {
 		fmt.Println("GetBlockInfo", i)
 		result, err := storageAccount.GetBlockInfo(nil, big.NewInt(int64(i)))
@@ -184,11 +184,11 @@ func GetCommitBlockInfo(addr common.Address) error {
 			fmt.Println(err)
 			return err
 		}
-		if result.BlockHash != hash {
+		if !bytes.Equal(result.BlockHash, hash) {
 			return fmt.Errorf("not expected hash, index is %d", i)
 		}
 
-		if result.PeerInfo != peer {
+		if !bytes.Equal(result.PeerInfo, peer) {
 			return fmt.Errorf("not expected peer, index is %d", i)
 		}
 
@@ -204,8 +204,6 @@ func DownloadSuccess(storageAccountAddr common.Address) error {
 		panic(err)
 	}
 	auth := bind.NewKeyedTransactor(testClientKey)
-	auth.GasLimit = 800000
-	auth.GasPrice = big.NewInt(1e9)
 
 	storageAccount, err := contract.NewStorageAccount(storageAccountAddr, client)
 	if err != nil {
@@ -233,16 +231,15 @@ func CommitBlocks(job *contract.StorageDepositNewUploadJob) error {
 	}
 
 	auth := bind.NewKeyedTransactor(testStorageKey)
-	auth.GasLimit = 800000
-	auth.GasPrice = big.NewInt(1e9)
 
-	hash := crypto.Keccak256Hash([]byte("data"))
-	peer := crypto.Keccak256Hash([]byte("peer"))
+	hash := append(crypto.Keccak256([]byte("data")), []byte("--")...)
+	peer := append(crypto.Keccak256([]byte("peer")), []byte("--")...)
 	ctx := context.Background()
 
 	fmt.Println("Committing Blocks")
 	for i := 0; i < 3; i++ {
-		tx, err := storageAccount.CommitBlockInfo(auth, job.FileAddress, big.NewInt(int64(i)), hash, peer, "proof")
+
+		tx, err := storageAccount.CommitBlockInfo(auth, job.FileAddress, big.NewInt(int64(i)), hash, peer, []byte("proof"))
 		if err != nil {
 			return err
 		}

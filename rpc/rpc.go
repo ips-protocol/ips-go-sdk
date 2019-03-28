@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"go-sdk/conf"
-	"go-sdk/contracts/storage/contract"
 	"go-sdk/file"
 	"go-sdk/p2p"
 	"io"
@@ -21,7 +19,7 @@ import (
 	"strconv"
 	"time"
 
-	shell "github.com/ipfs/go-ipfs-api"
+	"github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ironsmile/nedomi/utils"
 	"go-sdk/contracts/storage"
@@ -32,24 +30,25 @@ var ErrNodeNotFound = errors.New("node not found")
 const P2pProtocl = "/sys/http"
 
 type Client struct {
-	IpfsClients          map[string]*shell.Shell
-	NodesRefreshTime     time.Time
-	NodesRefreshInterval time.Duration
-	*contract.StorageDepositNewUploadJob
+	IpfsClients              map[string]*shell.Shell
+	NodesRefreshTime         time.Time
+	NodesRefreshInterval     time.Duration
+	DurationToDiscoveryNodes time.Duration
+	*storage.Client
 	*core.IpfsNode
 }
 
-func NewClient(cfg conf.Contract, node *core.IpfsNode) (cli *Client, err error) {
+func NewClient(cfg conf.Config, node *core.IpfsNode) (cli *Client, err error) {
 	cli = &Client{IpfsNode: node}
 	cli.IpfsClients = make(map[string]*shell.Shell)
 	cli.NodesRefreshInterval = time.Second
+	cli.DurationToDiscoveryNodes = time.Second * 3
 
-	storageDepositContractAddr := common.HexToAddress("0x0000000000000000000000000000000000000010")
-	job, err := storage.NewUploadJob(storageDepositContractAddr)
+	c, err := storage.NewClient(cfg.ContractConfig)
 	if err != nil {
 		return
 	}
-	cli.StorageDepositNewUploadJob = job
+	cli.Client = c
 
 	return
 }
@@ -89,6 +88,12 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	totalMetaLength := len(metaExB) + file.MetaBytes
 	dataShards, parShards := file.BlockCount(totalMetaLength, fi.Size(), 1/3)
 	totalDataLength := int64(dataShards*totalMetaLength) + fi.Size()
+
+	mgr, err := file.NewBlockMgr(dataShards, parShards)
+	if err != nil {
+		return
+	}
+
 	getMeta := func(i int) []byte {
 		meta := file.Meta{
 			DataShards:   uint32(dataShards),
@@ -100,49 +105,60 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		metaBytes = append(metaBytes, metaExB...)
 		return metaBytes
 	}
-
-	mgr, err := file.NewBlockMgr(dataShards, parShards)
-	if err != nil {
-		return
-	}
-
 	shardsRdr, err := mgr.ECShards(freader, getMeta, totalDataLength)
 	if err != nil {
 		return
 	}
 
-	nodes, err := c.GetIpfsClients()
+	nodes, err := c.GetIpfsClientsWithId()
 	if err != nil {
 		return
 	}
 
+	//cid
+	cid = string(hs.Sum(nil))
+	job, err := c.NewUploadJob(cid, fi.Size(), dataShards+parShards)
+	if err != nil {
+		return
+	}
+
+	//upload block
 	for i := range shardsRdr {
 		nodeIdx := i % len(nodes)
-		_, err = nodes[nodeIdx].Add(shardsRdr[i])
+		node := nodes[nodeIdx]
+		blockHash, err := node.c.Add(shardsRdr[i])
+		if err != nil {
+			return
+		}
+
+		err = c.CommitBlock(job, i, blockHash, node.id)
 		if err != nil {
 			return
 		}
 	}
 
-	//cid
-	cid = string(hs.Sum(nil))
-
-	_, err = c.NewUploadJob(cid, uint64(totalDataLength), uint64(dataShards+parShards), 0)
 	return
 }
 
-func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, err error) {
-	blocksHash, peersInfo, err := c.GetAllBlocksInfo()
+func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaAll, err error) {
+
+	stgAccountAddress, err := c.GetStorageAccount(fileHash)
 	if err != nil {
 		return
 	}
 
-	node, err := c.getIpfsClientOrRandom(peersInfo[0])
+	blocksInfo, err := c.GetBlocksInfo(stgAccountAddress)
 	if err != nil {
 		return
 	}
 
-	metaAll, err = GetMeta(node, blocksHash[0])
+	firstBlock := blocksInfo[0]
+	node, err := c.getIpfsClientOrRandom(string(firstBlock.PeerId))
+	if err != nil {
+		return
+	}
+
+	metaAll, err = GetMeta(node, string(firstBlock.BlockHash))
 	if err != nil {
 		return
 	}
@@ -151,17 +167,19 @@ func (c *Client) Download(hash string) (rc io.ReadCloser, metaAll file.MetaAll, 
 	dataShards := int(metaAll.DataShards)
 	rcs := make([]io.ReadCloser, dataShards)
 	for i := 0; i < dataShards; i++ {
-		node, err = c.getIpfsClientOrRandom(peersInfo[i])
+		blockInfo := blocksInfo[i]
+		node, err = c.getIpfsClientOrRandom(string(blockInfo.PeerId))
 		if err != nil {
 			return
 		}
-		rc1, err := ReadAt(node, blocksHash[i], int64(metaAllLength), 0)
+		rc1, err := ReadAt(node, string(blockInfo.BlockHash), int64(metaAllLength), 0)
 		if err != nil {
 			return
 		}
 		rcs[i] = rc1
 	}
 	rc = utils.MultiReadCloser(rcs...)
+	err = c.DownloadSuccess(stgAccountAddress)
 	return
 }
 
@@ -245,27 +263,59 @@ func (c *Client) GetIpfsClient(pId string) (node *shell.Shell, exist bool) {
 	return
 }
 
-func (c *Client) GetIpfsClients() (ss []*shell.Shell, err error) {
+type IpfsClientWithId struct {
+	id string
+	c  *shell.Shell
+}
 
+func (c *Client) GetIpfsClientsWithId() (cs []IpfsClientWithId, err error) {
+
+	getClientWithId := func() []IpfsClientWithId {
+		cs := []IpfsClientWithId{}
+		for id, c := range c.IpfsClients {
+			cs = append(cs, IpfsClientWithId{id, c})
+		}
+		return cs
+	}
 	if !c.needRefresh() {
-		ss = c.getIpfsClients()
+		cs = getClientWithId()
 		return
 	}
 
 	err = c.refreshIpfsClients()
 	if err == ErrNodeNotFound {
-		time.Sleep(time.Second * 3)
+		time.Sleep(c.DurationToDiscoveryNodes)
 		err = c.refreshIpfsClients()
 	}
 	if err != nil {
 		return
 	}
 
-	ss = c.getIpfsClients()
+	cs = getClientWithId()
 	return
 }
 
-func (c *Client) getIpfsClients() (ss []*shell.Shell) {
+func (c *Client) GetIpfsClients() (ss []*shell.Shell, err error) {
+
+	if !c.needRefresh() {
+		ss = c.ipfsClients()
+		return
+	}
+
+	err = c.refreshIpfsClients()
+	if err == ErrNodeNotFound {
+		time.Sleep(c.DurationToDiscoveryNodes)
+		err = c.refreshIpfsClients()
+	}
+	if err != nil {
+		return
+	}
+
+	ss = c.ipfsClients()
+	return
+}
+
+func (c *Client) ipfsClients() (ss []*shell.Shell) {
 	for _, ic := range c.IpfsClients {
 		ss = append(ss, ic)
 	}

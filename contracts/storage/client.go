@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,8 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go-sdk/conf"
 	"go-sdk/contracts/storage/contract"
-	"math/big"
-	"time"
 )
 
 var storageDepositContractAddr = common.HexToAddress("0x0000000000000000000000000000000000000010")
@@ -39,15 +41,26 @@ func (c *Client) NewKeyedTransactor() *bind.TransactOpts {
 	return transactor
 }
 
-func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int64) (job *contract.StorageDepositNewUploadJob, err error) {
+func (c *Client) GetStorageAccount(fileHash string) (stgAccountAddress common.Address, err error) {
 	storageDeposit, err := contract.NewStorageDeposit(storageDepositContractAddr, c)
 	if err != nil {
-		panic(err)
+		return
+	}
+
+	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
+	stgAccountAddress, err = storageDeposit.GetStorageAccount(nil, fileAddress)
+	return
+}
+
+func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *contract.StorageDepositNewUploadJob, err error) {
+	storageDeposit, err := contract.NewStorageDeposit(storageDepositContractAddr, c)
+	if err != nil {
+		return
 	}
 	transactor := c.NewKeyedTransactor()
 
-	hash := common.BytesToAddress([]byte(fileHash))
-	tx, err := storageDeposit.NewUploadJob(transactor, hash, big.NewInt(fsize), big.NewInt(shards))
+	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
+	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)))
 	if err != nil {
 		return
 	}
@@ -77,7 +90,7 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int64) (job *
 	return
 }
 
-func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx int64, blockHash, peerId [32]byte) error {
+func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx int, blockHash, peerId string) error {
 
 	stgAccount, err := contract.NewStorageAccount(job.StorageAccount, c)
 	if err != nil {
@@ -86,7 +99,7 @@ func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx 
 	transactor := c.NewKeyedTransactor()
 	ctx := context.Background()
 
-	tx, err := stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), blockHash, peerId, "proof")
+	tx, err := stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
 	if err != nil {
 		return err
 	}
@@ -96,11 +109,11 @@ func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx 
 }
 
 type BlockInfo struct {
-	BlockHash [32]byte
-	PeerId    [32]byte
+	BlockHash []byte
+	PeerId    []byte
 }
 
-func (c *Client) GetBlockInfo(stgAccountAddr common.Address) (blockInfos []BlockInfo, err error) {
+func (c *Client) GetBlocksInfo(stgAccountAddr common.Address) (blocksInfo []BlockInfo, err error) {
 	stgAccount, err := contract.NewStorageAccount(stgAccountAddr, c)
 	if err != nil {
 		return
@@ -119,7 +132,7 @@ func (c *Client) GetBlockInfo(stgAccountAddr common.Address) (blockInfos []Block
 			return
 		}
 
-		blockInfos = append(blockInfos, BlockInfo{blkInfo.BlockHash, blkInfo.PeerInfo})
+		blocksInfo = append(blocksInfo, BlockInfo{blkInfo.BlockHash, blkInfo.PeerInfo})
 	}
 	return
 }
