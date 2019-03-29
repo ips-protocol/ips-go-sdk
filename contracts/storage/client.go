@@ -35,8 +35,8 @@ func NewClient(cfg conf.ContractConfig) (cli *Client, err error) {
 }
 func (c *Client) NewKeyedTransactor() *bind.TransactOpts {
 	transactor := bind.NewKeyedTransactor(c.GetClientKey())
-	transactor.GasLimit = c.TransactorGasLimit
-	transactor.GasPrice = big.NewInt(c.TransactorGasPrice)
+	//transactor.GasLimit = c.TransactorGasLimit
+	//transactor.GasPrice = big.NewInt(c.TransactorGasPrice)
 	transactor.Value = big.NewInt(c.TransactorValue)
 	return transactor
 }
@@ -129,7 +129,7 @@ func (c *Client) GetBlocksInfo(stgAccountAddr common.Address) (blocksInfo []Bloc
 	for i := 0; i < blockNums; i++ {
 		blkInfo, err := stgAccount.GetBlockInfo(nil, big.NewInt(int64(i)))
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		blocksInfo = append(blocksInfo, BlockInfo{blkInfo.BlockHash, blkInfo.PeerInfo})

@@ -86,9 +86,10 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 	totalMetaLength := len(metaExB) + file.MetaBytes
-	dataShards, parShards := file.BlockCount(totalMetaLength, fi.Size(), 1/3)
+	dataShards, parShards := file.BlockCount(totalMetaLength, fi.Size(), 0.3)
 	totalDataLength := int64(dataShards*totalMetaLength) + fi.Size()
 
+	fmt.Println("dshards, parshards", dataShards, parShards)
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
 		return
@@ -128,12 +129,12 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		node := nodes[nodeIdx]
 		blockHash, err := node.c.Add(shardsRdr[i])
 		if err != nil {
-			return
+			return "", err
 		}
 
 		err = c.CommitBlock(job, i, blockHash, node.id)
 		if err != nil {
-			return
+			return "", err
 		}
 	}
 
@@ -172,8 +173,9 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaA
 		if err != nil {
 			return
 		}
-		rc1, err := ReadAt(node, string(blockInfo.BlockHash), int64(metaAllLength), 0)
-		if err != nil {
+		rc1, err1 := ReadAt(node, string(blockInfo.BlockHash), int64(metaAllLength), 0)
+		if err1 != nil {
+			err = err1
 			return
 		}
 		rcs[i] = rc1
