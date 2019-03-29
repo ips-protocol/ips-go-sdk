@@ -36,9 +36,9 @@ func NewClient(cfg conf.ContractConfig) (cli *Client, err error) {
 }
 func (c *Client) NewKeyedTransactor() *bind.TransactOpts {
 	transactor := bind.NewKeyedTransactor(c.GetClientKey())
-	transactor.GasLimit = c.TransactorGasLimit
-	transactor.GasPrice = big.NewInt(c.TransactorGasPrice)
-	transactor.Value = big.NewInt(c.TransactorValue)
+	//transactor.GasLimit = c.TransactorGasLimit
+	//transactor.GasPrice = big.NewInt(c.TransactorGasPrice)
+	//transactor.Value = big.NewInt(c.TransactorValue)
 	return transactor
 }
 
@@ -59,6 +59,8 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *co
 		return
 	}
 	transactor := c.NewKeyedTransactor()
+	transactor.GasPrice = big.NewInt(1e3)
+	transactor.Value = big.NewInt(1e6)
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
 	log.Info("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
@@ -95,16 +97,17 @@ func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx 
 		return err
 	}
 	transactor := c.NewKeyedTransactor()
-	ctx := context.Background()
 
 	log.Info("CommitBlock blockIdx:", blockIdx, "\t blockHash:", blockHash, "\tpeerId:", peerId)
-	tx, err := stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
+	_, err = stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
 	if err != nil {
 		return err
 	}
 
-	_, err = c.waitTransactionReceipt(ctx, tx.Hash())
-	return err
+	//ctx := context.Background()
+	//_, err = c.waitTransactionReceipt(ctx, tx.Hash())
+	//return err
+	return nil
 }
 
 type BlockInfo struct {

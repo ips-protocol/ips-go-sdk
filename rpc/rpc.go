@@ -118,13 +118,17 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 
 	//cid
 	cid = fmt.Sprintf("%x", hs.Sum(nil))
-	job, err := c.NewUploadJob(cid, fi.Size(), dataShards+parShards)
+	_, err = c.NewUploadJob(cid, fi.Size(), dataShards+parShards)
 	if err != nil {
 		return
 	}
 
 	//upload block
 	for i := range shardsRdr {
+
+		//body, err := ioutil.ReadAll(shardsRdr[i])
+		//fmt.Println("index:", i, "body:", string(body), "err:", err)
+
 		nodeIdx := i % len(nodes)
 		node := nodes[nodeIdx]
 		blockHash, err := node.c.Add(shardsRdr[i])
@@ -132,7 +136,8 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 			return "", err
 		}
 
-		err = c.CommitBlock(job, i, blockHash, node.id)
+		fmt.Println("blockHash: ", blockHash)
+		//err = c.CommitBlock(job, i, blockHash, node.id)
 		if err != nil {
 			return "", err
 		}
