@@ -117,7 +117,7 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	}
 
 	//cid
-	cid = string(hs.Sum(nil))
+	cid = fmt.Sprintf("%x", hs.Sum(nil))
 	job, err := c.NewUploadJob(cid, fi.Size(), dataShards+parShards)
 	if err != nil {
 		return
@@ -142,13 +142,8 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 }
 
 func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaAll, err error) {
-
-	stgAccountAddress, err := c.GetStorageAccount(fileHash)
-	if err != nil {
-		return
-	}
-
-	blocksInfo, err := c.GetBlocksInfo(stgAccountAddress)
+	blocksInfo, err := c.GetBlocksInfo(fileHash)
+	log.Println("GetBlocksInfo fileHash:", fileHash, "\tblocks info:", blocksInfo, "\terr:", err)
 	if err != nil {
 		return
 	}
@@ -181,7 +176,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaA
 		rcs[i] = rc1
 	}
 	rc = utils.MultiReadCloser(rcs...)
-	err = c.DownloadSuccess(stgAccountAddress)
+	err = c.DownloadSuccess(fileHash)
 	return
 }
 
@@ -403,7 +398,7 @@ func (c *Client) P2PCloseAll() error {
 
 func isP2PNode(id string) bool {
 	nodes := map[string]bool{
-		"Qmctjf76oDSKjLXS5QzNMbkDT4hVkSENRjpbaYn3dqeZ78": true,
+		//"Qmctjf76oDSKjLXS5QzNMbkDT4hVkSENRjpbaYn3dqeZ78": true,
 		"QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk": true,
 	}
 	_, ok := nodes[id]

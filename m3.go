@@ -1,14 +1,11 @@
 package main
 
 import (
-	//"bytes"
-	"encoding/binary"
 	"fmt"
-
-	bytes "./utils/bytes"
+	"math"
 )
 
-func main3() {
+func main() {
 	// Create a cid manually by specifying the 'prefix' parameters
 	//pref := cid.Prefix{
 	//	Version:  0,
@@ -25,24 +22,28 @@ func main3() {
 	//
 	//fmt.Println("Created CID: ", c)
 
-	st := struct {
-		A int64
-	}{890}
+	//--------------------------------------------------
+	//st := struct {
+	//	A int64
+	//}{890}
+	//
+	//fh := make([]byte, 8)
+	//w := bytes.NewWriter(fh)
+	//binary.Write(w, binary.LittleEndian, &st)
+	//
+	////s, err := json.Marshal(st)
+	//fmt.Println("-->", len(fh), fh)
+	//
+	//st1 := &struct {
+	//	A int64
+	//}{}
+	//
+	//r := bytes.NewReader(fh)
+	//
+	//binary.Read(r, binary.LittleEndian, st1)
+	//
+	//fmt.Printf("====> %d", st1.A)
 
-	fh := make([]byte, 8)
-	w := bytes.NewWriter(fh)
-	binary.Write(w, binary.LittleEndian, &st)
-
-	//s, err := json.Marshal(st)
-	fmt.Println("-->", len(fh), fh)
-
-	st1 := &struct {
-		A int64
-	}{}
-
-	r := bytes.NewReader(fh)
-
-	binary.Read(r, binary.LittleEndian, st1)
-
-	fmt.Printf("====> %d", st1.A)
+	//--------------------------------------------------
+	fmt.Println("abc:", math.Ceil(14/3))
 }

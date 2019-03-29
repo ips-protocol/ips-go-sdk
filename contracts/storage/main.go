@@ -21,6 +21,7 @@ import (
 //go:generate abigen --abi contract/storageDeposit.abi --bin contract/storageDeposit.bin --type StorageDeposit --pkg contract --out contract/storageDeposit.go
 
 var (
+	//storageDepositContractAddr = common.HexToAddress("0x0000000000000000000000000000000000000010")
 
 	// client private Key, make sure its balance is enough
 	testClientKey, _  = crypto.HexToECDSA("92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C")
@@ -115,9 +116,6 @@ func NewUploadJob(addr common.Address) (*contract.StorageDepositNewUploadJob, er
 	if err != nil {
 		panic(err)
 	}
-	abc, _ := storageDeposit.GetStorageAccount(nil, "abc")
-
-	DownloadSuccess(abc)
 
 	auth.Value = big.NewInt(1e6)
 
@@ -173,7 +171,7 @@ func GetCommitBlockInfo(addr common.Address) error {
 	}
 
 	fileInfo, err := storageAccount.GetFileInfo(nil)
-	fmt.Println("fileInfo", fileInfo.BlockNums)
+	fmt.Println("fileInfo", fileInfo.BlockNums, "\ttotal:", fileInfo.BlockNums.Int64(), "\tuploaded:", fileInfo.UploadedBlockNums.Int64())
 
 	hash := append(crypto.Keccak256([]byte("data")), []byte("--")...)
 	peer := append(crypto.Keccak256([]byte("peer")), []byte("--")...)

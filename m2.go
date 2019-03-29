@@ -8,6 +8,7 @@ import (
 	"go-sdk/p2p"
 	"go-sdk/rpc"
 	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
+	"io/ioutil"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 		ClientKeyHex:       "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
 		StorageKeyHex:      "CED8FF231B09B14F09D8FF977C5C6C079EF4B485FC2A0D3B2955182B77310A04",
 		ContractNodeAddr:   "http://127.0.0.1:8545",
-		TransactorGasLimit: 8000,
+		TransactorGasLimit: 960000,
 		TransactorGasPrice: 1,
 		TransactorValue:    1e6,
 	}
@@ -60,7 +61,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("cid:", cid)
+	fmt.Println("Upload success cid:", cid)
+
+	rc, metaAll, err := cli.Download(cid)
+	if err != nil {
+		panic(err)
+	}
+	defer rc.Close()
+	fc, err := ioutil.ReadAll(rc)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Download file content:", string(fc), "\tmeta data:", metaAll)
 
 	// upload file ---------------------------------------------------------------------------------------------------
 	//n, err := core.NewNode(ctx, ncfg)

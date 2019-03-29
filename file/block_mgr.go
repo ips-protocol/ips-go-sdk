@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"math"
 	"os"
 
 	"github.com/klauspost/reedsolomon"
@@ -13,7 +12,7 @@ import (
 
 var ErrShortData = errors.New("short data")
 
-const DefaultBlockSize = 1 << 26 //64MB
+const DefaultBlockSize = 1 << 20 //64MB
 
 type BlockMgr struct {
 	DataShards int
@@ -138,6 +137,6 @@ func (m *BlockMgr) ECShards(reader io.Reader, getMeta func(int) []byte, size int
 func BlockCount(metaSize int, fsize int64, redundancyRate float64) (dataShards, parShards int) {
 	blockDataSize := DefaultBlockSize - metaSize
 	dataShards = int((fsize + int64(blockDataSize) - 1) / int64(blockDataSize))
-	parShards = int(math.Ceil(float64(dataShards) * redundancyRate))
+	parShards = int(float64(dataShards)*redundancyRate + 1)
 	return
 }

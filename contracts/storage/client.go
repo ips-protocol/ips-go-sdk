@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/qiniu/log"
 	"math/big"
 	"time"
 
@@ -35,20 +36,20 @@ func NewClient(cfg conf.ContractConfig) (cli *Client, err error) {
 }
 func (c *Client) NewKeyedTransactor() *bind.TransactOpts {
 	transactor := bind.NewKeyedTransactor(c.GetClientKey())
-	//transactor.GasLimit = c.TransactorGasLimit
-	//transactor.GasPrice = big.NewInt(c.TransactorGasPrice)
+	transactor.GasLimit = c.TransactorGasLimit
+	transactor.GasPrice = big.NewInt(c.TransactorGasPrice)
 	transactor.Value = big.NewInt(c.TransactorValue)
 	return transactor
 }
 
-func (c *Client) GetStorageAccount(fileHash string) (stgAccountAddress common.Address, err error) {
+func (c *Client) GetStorageAccount(fileHash string) (stgAccountAddr common.Address, err error) {
 	storageDeposit, err := contract.NewStorageDeposit(storageDepositContractAddr, c)
 	if err != nil {
 		return
 	}
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
-	stgAccountAddress, err = storageDeposit.GetStorageAccount(nil, fileAddress)
+	stgAccountAddr, err = storageDeposit.GetStorageAccount(nil, fileAddress)
 	return
 }
 
@@ -60,6 +61,7 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *co
 	transactor := c.NewKeyedTransactor()
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
+	log.Info("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
 	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)))
 	if err != nil {
 		return
@@ -83,10 +85,6 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *co
 
 	job = &contract.StorageDepositNewUploadJob{}
 	err = storageABI.Unpack(job, "NewUploadJob", receipt.Logs[0].Data)
-	if err != nil {
-		return
-	}
-
 	return
 }
 
@@ -99,6 +97,7 @@ func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx 
 	transactor := c.NewKeyedTransactor()
 	ctx := context.Background()
 
+	log.Info("CommitBlock blockIdx:", blockIdx, "\t blockHash:", blockHash, "\tpeerId:", peerId)
 	tx, err := stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
 	if err != nil {
 		return err
@@ -113,7 +112,12 @@ type BlockInfo struct {
 	PeerId    []byte
 }
 
-func (c *Client) GetBlocksInfo(stgAccountAddr common.Address) (blocksInfo []BlockInfo, err error) {
+func (c *Client) GetBlocksInfo(fileHash string) (blocksInfo []BlockInfo, err error) {
+	stgAccountAddr, err := c.GetStorageAccount(fileHash)
+	if err != nil {
+		return
+	}
+
 	stgAccount, err := contract.NewStorageAccount(stgAccountAddr, c)
 	if err != nil {
 		return
@@ -137,7 +141,12 @@ func (c *Client) GetBlocksInfo(stgAccountAddr common.Address) (blocksInfo []Bloc
 	return
 }
 
-func (c *Client) DownloadSuccess(stgAccountAddr common.Address) error {
+func (c *Client) DownloadSuccess(fileHash string) error {
+	stgAccountAddr, err := c.GetStorageAccount(fileHash)
+	if err != nil {
+		return err
+	}
+
 	storageAccount, err := contract.NewStorageAccount(stgAccountAddr, c)
 	if err != nil {
 		return err
