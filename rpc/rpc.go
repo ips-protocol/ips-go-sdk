@@ -147,10 +147,19 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 }
 
 func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaAll, err error) {
-	blocksInfo, err := c.GetBlocksInfo(fileHash)
-	log.Println("GetBlocksInfo fileHash:", fileHash, "\tblocks info:", blocksInfo, "\terr:", err)
-	if err != nil {
-		return
+	//blocksInfo, err := c.GetBlocksInfo(fileHash)
+	//log.Println("GetBlocksInfo fileHash:", fileHash, "\tblocks info:", blocksInfo, "\terr:", err)
+	//if err != nil {
+	//	return
+	//}
+
+	blocksInfo := []storage.BlockInfo{
+		{[]byte("Qmd6Nj3GFKxo3LT2gAdoVzSjoBWSfYKGdFRyLjtjKDkvJ1"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+		{[]byte("QmVdtWzv1Nem7BiJTMDCcvza38hMKCYARBWb4LZjsvtNYU"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+		{[]byte("QmYYwHMtceagVxG79fE74LETmMvyi9A6QZ9TDHeU3K6Dqv"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+		{[]byte("QmZM2uYRVFvWryiw6pExBberjQNSASBZsEAWeJDAy7AQDt"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+		{[]byte("QmTXpM13pqYToQMRgwXUhwXrmkGfBPiZ68MG9ijvMaf69G"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+		{[]byte("QmXcZpPCSvs6ZvRtEWmNNAfYFxEdiCYqU3TwNZ2P1sFbTW"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
 	}
 
 	firstBlock := blocksInfo[0]
@@ -181,7 +190,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaA
 		rcs[i] = rc1
 	}
 	rc = utils.MultiReadCloser(rcs...)
-	err = c.DownloadSuccess(fileHash)
+	//err = c.DownloadSuccess(fileHash)
 	return
 }
 
@@ -219,13 +228,10 @@ func GetMeta(node *shell.Shell, blockHash string) (metaAll file.MetaAll, err err
 	return
 }
 
-func ReadAt(node *shell.Shell, fp string, offset, count int64) (rc io.ReadCloser, err error) {
-	req := node.Request("files/read", fp)
-	if offset != 0 {
-		req.Option("offset", offset)
-	}
-	if count != 0 {
-		req.Option("count", count)
+func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadCloser, err error) {
+	req := node.Request("cat", fp).Option("offset", offset)
+	if length != 0 {
+		req.Option("length", length)
 	}
 	resp, err := req.Send(context.Background())
 	if err != nil {

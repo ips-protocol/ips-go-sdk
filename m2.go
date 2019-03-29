@@ -8,6 +8,7 @@ import (
 	"go-sdk/p2p"
 	"go-sdk/rpc"
 	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
+	"io"
 	"io/ioutil"
 )
 
@@ -57,14 +58,14 @@ func main() {
 	}
 
 	// cid, err := cli.Upload(f)
-	cid, err := cli.Upload("/tmp/test.txt")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Upload success cid:", cid)
+	//cid, err := cli.Upload("/tmp/test.txt")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("Upload success cid:", cid)
 
-	rc, metaAll, err := cli.Download(cid)
-	if err != nil {
+	rc, metaAll, err := cli.Download("")
+	if err != nil && err != io.EOF {
 		panic(err)
 	}
 	defer rc.Close()
