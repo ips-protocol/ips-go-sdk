@@ -67,11 +67,10 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	}
 
 	//cid
-	cid1, err := file.GetCID(fh)
+	cid, err = file.GetCID(fh)
 	if err != nil {
 		return
 	}
-	cid = cid1.String()
 	_, err = fh.Seek(io.SeekStart, io.SeekStart)
 	if err != nil {
 		return
