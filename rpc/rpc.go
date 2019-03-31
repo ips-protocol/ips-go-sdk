@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,12 +67,11 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	}
 
 	//cid
-	hs := md5.New()
-	_, err = io.Copy(hs, fh)
+	cid1, err := file.GetCID(fh)
 	if err != nil {
 		return
 	}
-	cid = fmt.Sprintf("%x", hs.Sum(nil))
+	cid = cid1.String()
 	_, err = fh.Seek(io.SeekStart, io.SeekStart)
 	if err != nil {
 		return

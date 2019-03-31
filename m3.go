@@ -1,10 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"math"
-)
-
 func main() {
 	// Create a cid manually by specifying the 'prefix' parameters
 	//pref := cid.Prefix{
@@ -44,6 +39,4 @@ func main() {
 	//
 	//fmt.Printf("====> %d", st1.A)
 
-	//--------------------------------------------------
-	fmt.Println("abc:", math.Ceil(14/3))
 }
