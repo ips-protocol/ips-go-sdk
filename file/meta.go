@@ -19,9 +19,9 @@ type Meta struct {
 
 //block data header mutual length
 type MetaEx struct {
-	FName string `json:"f_name"`
-	FSize int64  `json:"f_size"`
-	FHash string `json:"f_hash"`
+	FName string `json:"n"`
+	FSize int64  `json:"s"`
+	FHash string `json:"h"`
 }
 
 type MetaAll struct {

@@ -67,13 +67,17 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 
+	//cid
 	hs := md5.New()
-	freader := io.TeeReader(fh, hs)
-
-	//cid, err = file.GetCID(nil)
-	//if err != nil {
-	//	return
-	//}
+	_, err = io.Copy(hs, fh)
+	if err != nil {
+		return
+	}
+	cid = fmt.Sprintf("%x", hs.Sum(nil))
+	_, err = fh.Seek(io.SeekStart, io.SeekStart)
+	if err != nil {
+		return
+	}
 
 	metaEx := file.MetaEx{
 		FName: fname,
@@ -106,7 +110,7 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		metaBytes = append(metaBytes, metaExB...)
 		return metaBytes
 	}
-	shardsRdr, err := mgr.ECShards(freader, getMeta, totalDataLength)
+	shardsRdr, err := mgr.ECShards(fh, getMeta, totalDataLength)
 	if err != nil {
 		return
 	}
@@ -116,8 +120,6 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 
-	//cid
-	cid = fmt.Sprintf("%x", hs.Sum(nil))
 	_, err = c.NewUploadJob(cid, fi.Size(), dataShards+parShards)
 	if err != nil {
 		return
