@@ -48,6 +48,7 @@ func (cfg ContractConfig) GetStorageAddress() common.Address {
 }
 
 type Config struct {
+	BlockUpWorkerCount int `json:"block_up_worker_count"`
 	ECConfig
 	ContractConfig
 }

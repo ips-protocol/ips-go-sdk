@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-ipfs-api"
@@ -33,6 +34,7 @@ type Client struct {
 	NodesRefreshTime         time.Time
 	NodesRefreshInterval     time.Duration
 	DurationToDiscoveryNodes time.Duration
+	WorkerCounts             int
 	*storage.Client
 	*core.IpfsNode
 }
@@ -42,6 +44,10 @@ func NewClient(cfg conf.Config, node *core.IpfsNode) (cli *Client, err error) {
 	cli.IpfsClients = make(map[string]*shell.Shell)
 	cli.NodesRefreshInterval = time.Second
 	cli.DurationToDiscoveryNodes = time.Second * 3
+	cli.WorkerCounts = cfg.BlockUpWorkerCount
+	if cli.WorkerCounts == 0 {
+		cli.WorkerCounts = 2
+	}
 
 	c, err := storage.NewClient(cfg.ContractConfig)
 	if err != nil {
@@ -88,9 +94,8 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	}
 	totalMetaLength := len(metaExB) + file.MetaBytes
 	dataShards, parShards := file.BlockCount(totalMetaLength, fi.Size(), 0.3)
+	shards := dataShards + parShards
 	totalDataLength := int64(dataShards*totalMetaLength) + fi.Size()
-
-	fmt.Println("dshards, parshards", dataShards, parShards)
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
 		return
@@ -117,29 +122,41 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 
-	_, err = c.NewUploadJob(cid, fi.Size(), dataShards+parShards)
+	_, err = c.NewUploadJob(cid, fi.Size(), shards)
 	if err != nil {
 		return
 	}
 
 	//upload block
-	for i := range shardsRdr {
-
-		//body, err := ioutil.ReadAll(shardsRdr[i])
-		//fmt.Println("index:", i, "body:", string(body), "err:", err)
-
-		nodeIdx := i % len(nodes)
-		node := nodes[nodeIdx]
-		blockHash, err := node.c.Add(shardsRdr[i])
-		if err != nil {
-			return "", err
+	shardIdCh := make(chan int, shards)
+	for i := 0; i < shards; i++ {
+		shardIdCh <- i
+	}
+	close(shardIdCh)
+	errCh := make(chan error, shards)
+	wg := sync.WaitGroup{}
+	wg.Add(c.WorkerCounts)
+	worker := func() {
+		defer wg.Done()
+		for id := range shardIdCh {
+			//for retry
+			nodeIdx := id % len(nodes)
+			node := nodes[nodeIdx]
+			blkHash, err := node.c.Add(shardsRdr[id])
+			if err != nil {
+				errCh <- err
+			}
+			fmt.Println("Hash:", blkHash, err)
 		}
-
-		fmt.Println("blockHash: ", blockHash)
-		//err = c.CommitBlock(job, i, blockHash, node.id)
-		if err != nil {
-			return "", err
-		}
+	}
+	for i := 0; i < c.WorkerCounts; i++ {
+		go worker()
+	}
+	wg.Wait()
+	close(errCh)
+	for err1 := range errCh {
+		cid = ""
+		err = err1
 	}
 
 	return

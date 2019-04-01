@@ -12,7 +12,7 @@ import (
 
 var ErrShortData = errors.New("short data")
 
-const DefaultBlockSize = 1 << 18 //256k for test
+const DefaultBlockSize = 1 << 10 //256k for test
 
 type BlockMgr struct {
 	DataShards int

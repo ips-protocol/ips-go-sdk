@@ -48,14 +48,14 @@ func main() {
 		TransactorGasPrice: 1,
 		TransactorValue:    1e6,
 	}
-	cfg := conf.Config{ContractConfig: ccfg}
+	cfg := conf.Config{ContractConfig: ccfg, BlockUpWorkerCount: 3}
 
 	cli, err := rpc.NewClient(cfg, n)
 	if err != nil {
 		panic(err)
 	}
 
-	cid, err := cli.Upload("/tmp/test.txt")
+	cid, err := cli.Upload("/tmp/5m.txt")
 	if err != nil {
 		panic(err)
 	}
