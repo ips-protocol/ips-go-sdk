@@ -10,7 +10,6 @@ import (
 	"go-sdk/p2p"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -31,6 +30,7 @@ const P2pProtocl = "/sys/http"
 
 type Client struct {
 	IpfsClients              map[string]*shell.Shell
+	IpfsUnabailableClients   map[string]*shell.Shell
 	NodesRefreshTime         time.Time
 	NodesRefreshInterval     time.Duration
 	DurationToDiscoveryNodes time.Duration
@@ -363,28 +363,24 @@ func (c *Client) refreshIpfsClients() error {
 		fmt.Println("peer: ---->", p.Pretty())
 
 		id := p.Pretty()
-		if !isP2PNode(id) {
-			continue
-		}
-
 		cli, ok := c.IpfsClients[id]
 		if ok {
 			clients[id] = cli
 			continue
 		}
 
-		port, err := GetFreePort()
-		if err != nil {
-			return err
-		}
-
-		err = c.P2PForward(port, id)
-		if err != nil {
-			log.Println(err)
+		_, ok = c.IpfsUnabailableClients[id]
+		if ok {
 			continue
 		}
 
-		clients[id] = shell.NewShell(localAddr(port))
+		cli, err := c.NewIpfsClient(id)
+		if err != nil {
+			c.IpfsUnabailableClients[id] = cli
+			continue
+		}
+
+		clients[id] = cli
 	}
 
 	for id := range c.IpfsClients {
@@ -403,8 +399,25 @@ func (c *Client) refreshIpfsClients() error {
 	return nil
 }
 
-func localAddr(port int) string {
-	return "127.0.0.1:" + strconv.Itoa(port)
+func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
+	port, err := GetFreePort()
+	if err != nil {
+		return
+	}
+
+	err = c.P2PForward(port, peerId)
+	if err != nil {
+		return
+	}
+	url := fmt.Sprintf("127.0.0.1:%d", port)
+
+	s := shell.NewShell(url)
+	_, err = s.ID()
+	if err != nil {
+		c.P2PClose(0, peerId)
+	}
+
+	return
 }
 
 func (c *Client) P2PForward(port int, peerId string) error {

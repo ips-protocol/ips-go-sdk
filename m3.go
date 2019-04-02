@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"math"
+)
+
 func main() {
 	// Create a cid manually by specifying the 'prefix' parameters
 	//pref := cid.Prefix{
@@ -38,5 +43,7 @@ func main() {
 	//binary.Read(r, binary.LittleEndian, st1)
 	//
 	//fmt.Printf("====> %d", st1.A)
+
+	fmt.Println(math.Ceil(4 * 1 / 3))
 
 }
