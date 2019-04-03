@@ -1,8 +1,8 @@
 package rpc
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go-sdk/conf"
@@ -42,6 +42,7 @@ type Client struct {
 func NewClient(cfg conf.Config, node *core.IpfsNode) (cli *Client, err error) {
 	cli = &Client{IpfsNode: node}
 	cli.IpfsClients = make(map[string]*shell.Shell)
+	cli.IpfsUnabailableClients = make(map[string]*shell.Shell)
 	cli.NodesRefreshInterval = time.Second
 	cli.DurationToDiscoveryNodes = time.Second * 3
 	cli.WorkerCounts = cfg.BlockUpWorkerCount
@@ -82,37 +83,15 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 
-	metaEx := file.MetaEx{
-		FName: fname,
-		FSize: fi.Size(),
-		FHash: cid,
-	}
-
-	metaExB, err := json.Marshal(metaEx)
-	if err != nil {
-		return
-	}
-	totalMetaLength := len(metaExB) + file.MetaBytes
-	dataShards, parShards := file.BlockCount(totalMetaLength, fi.Size(), 0.3)
-	shards := dataShards + parShards
-	totalDataLength := int64(dataShards*totalMetaLength) + fi.Size()
+	dataShards, parShards := file.BlockCount(fi.Size())
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
 		return
 	}
 
-	getMeta := func(i int) []byte {
-		meta := file.Meta{
-			DataShards:   uint32(dataShards),
-			ParShards:    uint32(parShards),
-			BlockIdx:     uint32(i),
-			MetaExLength: uint32(len(metaExB)),
-		}
-		metaBytes := file.EncodeMeta(&meta)
-		metaBytes = append(metaBytes, metaExB...)
-		return metaBytes
-	}
-	shardsRdr, err := mgr.ECShards(fh, getMeta, totalDataLength)
+	meta := file.NewMeta(fname, cid, fi.Size(), uint32(dataShards), uint32(parShards))
+
+	shardsRdr, err := mgr.ECShards(fh, fi.Size())
 	if err != nil {
 		return
 	}
@@ -122,10 +101,11 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 
-	_, err = c.NewUploadJob(cid, fi.Size(), shards)
-	if err != nil {
-		return
-	}
+	shards := dataShards + parShards
+	//_, err = c.NewUploadJob(cid, fi.Size(), shards)
+	//if err != nil {
+	//	return
+	//}
 
 	//upload block
 	shardIdCh := make(chan int, shards)
@@ -142,11 +122,15 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 			//for retry
 			nodeIdx := id % len(nodes)
 			node := nodes[nodeIdx]
-			blkHash, err := node.c.Add(shardsRdr[id])
+
+			mr := bytes.NewBuffer(meta.Encode(id))
+			r := io.MultiReader(mr, shardsRdr[id])
+
+			blkHash, err := node.c.Add(r)
 			if err != nil {
 				errCh <- err
 			}
-			fmt.Println("Hash:", blkHash, err)
+			fmt.Println("Block Hash:", blkHash, err)
 		}
 	}
 	for i := 0; i < c.WorkerCounts; i++ {
@@ -162,7 +146,7 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	return
 }
 
-func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaAll, err error) {
+func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta, err error) {
 	//blocksInfo, err := c.GetBlocksInfo(fileHash)
 	//log.Println("GetBlocksInfo fileHash:", fileHash, "\tblocks info:", blocksInfo, "\terr:", err)
 	//if err != nil {
@@ -184,13 +168,11 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaA
 		return
 	}
 
-	metaAll, err = GetMeta(node, string(firstBlock.BlockHash))
+	meta, err := c.GetMeta(blocksInfo)
 	if err != nil {
 		return
 	}
-
-	metaAllLength := file.MetaBytes + metaAll.MetaExLength
-	dataShards := int(metaAll.DataShards)
+	dataShards := int(meta.DataShards)
 	rcs := make([]io.ReadCloser, dataShards)
 	for i := 0; i < dataShards; i++ {
 		blockInfo := blocksInfo[i]
@@ -198,7 +180,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaA
 		if err != nil {
 			return
 		}
-		rc1, err1 := ReadAt(node, string(blockInfo.BlockHash), int64(metaAllLength), 0)
+		rc1, err1 := ReadAt(node, string(blockInfo.BlockHash), int64(meta.Len()), 0)
 		if err1 != nil {
 			err = err1
 			return
@@ -210,38 +192,45 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.MetaA
 	return
 }
 
-func GetMeta(node *shell.Shell, blockHash string) (metaAll file.MetaAll, err error) {
+func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
+	for _, bi := range bis {
+		peerId := string(bi.PeerId)
+		cli, _ := c.getIpfsClientOrRandom(peerId)
+		meta, err = getMeta(cli, string(bi.BlockHash))
+		if err == nil {
+			return
+		}
+	}
+	return
+}
 
-	rc1, err := ReadAt(node, blockHash, 0, file.MetaBytes)
+func getMeta(node *shell.Shell, blkHash string) (m *file.Meta, err error) {
+	rc1, err := ReadAt(node, blkHash, 0, file.MetaHeaderLength)
 	if err != nil {
 		return
 	}
 	defer rc1.Close()
-	metaB, err := ioutil.ReadAll(rc1)
+	metaHeaderB, err := ioutil.ReadAll(rc1)
 	if err != nil {
 		return
 	}
-	meta, err := file.DecodeMeta(metaB)
+	metaHeader, err := file.DecodeMetaHeader(metaHeaderB)
 	if err != nil {
 		return
 	}
 
-	rc2, err := ReadAt(node, blockHash, file.MetaBytes, int64(meta.MetaExLength))
+	metaLen := file.MetaHeaderLength + metaHeader.MetaBodyLength
+	rc2, err := ReadAt(node, blkHash, 0, int64(metaLen))
 	if err != nil {
 		return
 	}
 	defer rc2.Close()
-	metaExB, err := ioutil.ReadAll(rc2)
+	metaData, err := ioutil.ReadAll(rc2)
 	if err != nil {
 		return
 	}
-	metaEx := file.MetaEx{}
-	err = json.Unmarshal(metaExB, &metaEx)
-	if err != nil {
-		return
-	}
-	metaAll = file.MetaAll{Meta: *meta, MetaEx: metaEx}
-	return
+
+	return file.DecodeMeta(metaData)
 }
 
 func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadCloser, err error) {
@@ -293,7 +282,6 @@ type IpfsClientWithId struct {
 }
 
 func (c *Client) GetIpfsClientsWithId() (cs []IpfsClientWithId, err error) {
-
 	getClientWithId := func() []IpfsClientWithId {
 		cs := []IpfsClientWithId{}
 		for id, c := range c.IpfsClients {
@@ -360,8 +348,6 @@ func (c *Client) refreshIpfsClients() error {
 	clients := make(map[string]*shell.Shell)
 	ps := c.IpfsNode.Peerstore.Peers()
 	for _, p := range ps {
-		fmt.Println("peer: ---->", p.Pretty())
-
 		id := p.Pretty()
 		cli, ok := c.IpfsClients[id]
 		if ok {
@@ -377,9 +363,11 @@ func (c *Client) refreshIpfsClients() error {
 		cli, err := c.NewIpfsClient(id)
 		if err != nil {
 			c.IpfsUnabailableClients[id] = cli
+			fmt.Println("bad peer: ", p.Pretty(), err)
 			continue
 		}
 
+		fmt.Println("p2p peer: ", p.Pretty())
 		clients[id] = cli
 	}
 
@@ -411,8 +399,8 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 	}
 	url := fmt.Sprintf("127.0.0.1:%d", port)
 
-	s := shell.NewShell(url)
-	_, err = s.ID()
+	cli = shell.NewShell(url)
+	_, err = cli.ID()
 	if err != nil {
 		c.P2PClose(0, peerId)
 	}

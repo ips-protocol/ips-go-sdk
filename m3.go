@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 )
 
 func main() {
@@ -44,6 +43,6 @@ func main() {
 	//
 	//fmt.Printf("====> %d", st1.A)
 
-	fmt.Println(math.Ceil(4 * 1 / 3))
+	fmt.Println((4 + 2) / 3)
 
 }

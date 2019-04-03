@@ -13,6 +13,7 @@ import (
 var ErrShortData = errors.New("short data")
 
 const DefaultBlockSize = 1 << 10 //256k for test
+const MaxBlockCount = 257
 
 type BlockMgr struct {
 	DataShards int
@@ -22,7 +23,7 @@ type BlockMgr struct {
 
 func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *BlockMgr, err error) {
 
-	if dataShards > 257 {
+	if dataShards > MaxBlockCount {
 		err = errors.New("too many data shards")
 		return
 	}
@@ -102,7 +103,7 @@ func (m *BlockMgr) SplitFile(fname string) (rcs []io.ReadCloser, err error) {
 	return
 }
 
-func (m *BlockMgr) ECShards(reader io.Reader, getMeta func(int) []byte, size int64) (shardsRdr []io.Reader, err error) {
+func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader, err error) {
 
 	shards := m.DataShards + m.ParShards
 	perShard := (size + int64(m.DataShards) - 1) / int64(m.DataShards)
@@ -115,9 +116,7 @@ func (m *BlockMgr) ECShards(reader io.Reader, getMeta func(int) []byte, size int
 	for i := range shardsRdr {
 		buf := &bytes.Buffer{}
 		if i < m.DataShards {
-			meta := getMeta(i)
-			dataWithMeta := io.MultiReader(bytes.NewBuffer(meta), data)
-			r := io.LimitReader(dataWithMeta, perShard)
+			r := io.LimitReader(data, perShard)
 			rs[i] = io.TeeReader(r, buf)
 			shardsRdr[i] = buf
 		} else {
@@ -134,9 +133,11 @@ func (m *BlockMgr) ECShards(reader io.Reader, getMeta func(int) []byte, size int
 	return
 }
 
-func BlockCount(metaSize int, fsize int64, redundancyRate float64) (dataShards, parShards int) {
-	blockDataSize := DefaultBlockSize - metaSize
-	dataShards = int((fsize + int64(blockDataSize) - 1) / int64(blockDataSize))
-	parShards = int(float64(dataShards)*redundancyRate + 1)
+func BlockCount(fsize int64) (dataShards, parShards int) {
+	dataShards = int((fsize + int64(DefaultBlockSize) - 1) / int64(DefaultBlockSize))
+	if dataShards > MaxBlockCount {
+		dataShards = MaxBlockCount
+	}
+	parShards = int((dataShards + 2) / 3)
 	return
 }

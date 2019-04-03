@@ -44,9 +44,7 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	fi, err := f.Stat()
 	assert.Equal(t, nil, err)
 
-	rs, err := blockMgr.ECShards(f, func(i int) []byte {
-		return []byte("abcd")
-	}, fi.Size())
+	rs, err := blockMgr.ECShards(f, fi.Size())
 	ok, err = blockMgr.Verify(rs)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, nil, err)
@@ -54,9 +52,7 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	//test shards join
 	f.Seek(0, io.SeekStart)
 
-	rs2, _ := blockMgr.ECShards(f, func(i int) []byte {
-		return nil
-	}, fi.Size())
+	rs2, _ := blockMgr.ECShards(f, fi.Size())
 	fileContent, err := ioutil.ReadAll(f)
 	assert.Equal(t, nil, err)
 	fileContent2 := bytes.NewBuffer(nil)
