@@ -426,15 +426,6 @@ func (c *Client) P2PCloseAll() error {
 	return p2p.Close(c.IpfsNode.P2P, true, "", "", "")
 }
 
-func isP2PNode(id string) bool {
-	nodes := map[string]bool{
-		//"Qmctjf76oDSKjLXS5QzNMbkDT4hVkSENRjpbaYn3dqeZ78": true,
-		"QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk": true,
-	}
-	_, ok := nodes[id]
-	return ok
-}
-
 func GetFreePort() (port int, err error) {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
