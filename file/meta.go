@@ -69,6 +69,7 @@ func DecodeMeta(data []byte) (meta *Meta, err error) {
 
 	metaBody := MetaBody{}
 	err = json.Unmarshal(data[MetaHeaderLength:metaLength], &metaBody)
+	meta = &Meta{*metaHeader, metaBody}
 
 	return
 }

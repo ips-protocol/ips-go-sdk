@@ -172,7 +172,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta,
 	if err != nil {
 		return
 	}
-	dataShards := int(meta.DataShards)
+	dataShards := int(meta.MetaHeader.DataShards)
 	rcs := make([]io.ReadCloser, dataShards)
 	for i := 0; i < dataShards; i++ {
 		blockInfo := blocksInfo[i]
@@ -194,8 +194,10 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta,
 
 func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
 	for _, bi := range bis {
-		peerId := string(bi.PeerId)
-		cli, _ := c.getIpfsClientOrRandom(peerId)
+		cli, err1 := c.getIpfsClientOrRandom(string(bi.PeerId))
+		if err1 != nil {
+			continue
+		}
 		meta, err = getMeta(cli, string(bi.BlockHash))
 		if err == nil {
 			return
