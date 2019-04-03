@@ -7,11 +7,9 @@ import (
 	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
 
 	cfg "github.com/ipfs/go-ipfs/config"
-
-	"github.com/ipfs/go-ipfs/commands"
-	"github.com/ipfs/go-ipfs/config"
 	"github.com/ipfs/go-ipfs/core"
-	"github.com/ipfs/go-ipfs/repo"
+	"github.com/ipweb-group/go-ipfs/commands"
+	"github.com/ipweb-group/go-ipfs/repo"
 )
 
 func DefaultRepo(dstore repo.Datastore) (repo.Repo, error) {
@@ -51,7 +49,7 @@ func Ctx(node *core.IpfsNode, repoPath string) commands.Context {
 	return commands.Context{
 		Online:     true,
 		ConfigRoot: repoPath,
-		LoadConfig: func(path string) (*config.Config, error) {
+		LoadConfig: func(path string) (*cfg.Config, error) {
 			return node.Repo.Config()
 		},
 		ConstructNode: func() (*core.IpfsNode, error) {

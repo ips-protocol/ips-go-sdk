@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/qiniu/log"
+	"log"
 	"math/big"
 	"time"
 
@@ -14,9 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"go-sdk/conf"
-	"go-sdk/contracts/storage/contract"
+	"github.com/ipweb-group/go-sdk/conf"
+	"github.com/ipweb-group/ipw/contracts/storage/contract"
 )
 
 var storageDepositContractAddr = common.HexToAddress("0x0000000000000000000000000000000000000010")
@@ -63,7 +63,7 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *co
 	transactor.Value = big.NewInt(1e6)
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
-	log.Info("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
+	log.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
 	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)))
 	if err != nil {
 		return
@@ -98,7 +98,7 @@ func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx 
 	}
 	transactor := c.NewKeyedTransactor()
 
-	log.Info("CommitBlock blockIdx:", blockIdx, "\t blockHash:", blockHash, "\tpeerId:", peerId)
+	log.Println("CommitBlock blockIdx:", blockIdx, "\t blockHash:", blockHash, "\tpeerId:", peerId)
 	_, err = stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
 	if err != nil {
 		return err
@@ -144,27 +144,27 @@ func (c *Client) GetBlocksInfo(fileHash string) (blocksInfo []BlockInfo, err err
 	return
 }
 
-func (c *Client) DownloadSuccess(fileHash string) error {
-	stgAccountAddr, err := c.GetStorageAccount(fileHash)
-	if err != nil {
-		return err
-	}
-
-	storageAccount, err := contract.NewStorageAccount(stgAccountAddr, c)
-	if err != nil {
-		return err
-	}
-
-	transactor := c.NewKeyedTransactor()
-	tx, err := storageAccount.DownloadSuccess(transactor)
-	if err != nil {
-		return err
-	}
-
-	ctx := context.Background()
-	_, err = c.waitTransactionReceipt(ctx, tx.Hash())
-	return err
-}
+//func (c *Client) DownloadSuccess(fileHash string) error {
+//	stgAccountAddr, err := c.GetStorageAccount(fileHash)
+//	if err != nil {
+//		return err
+//	}
+//
+//	storageAccount, err := contract.NewStorageAccount(stgAccountAddr, c)
+//	if err != nil {
+//		return err
+//	}
+//
+//	transactor := c.NewKeyedTransactor()
+//	tx, err := storageAccount.DownloadSuccess(transactor)
+//	if err != nil {
+//		return err
+//	}
+//
+//	ctx := context.Background()
+//	_, err = c.waitTransactionReceipt(ctx, tx.Hash())
+//	return err
+//}
 
 func (c *Client) waitTransactionReceipt(ctx context.Context, tx common.Hash) (receipt *types.Receipt, err error) {
 	for {

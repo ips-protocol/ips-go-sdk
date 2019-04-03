@@ -3,8 +3,9 @@ package file
 import (
 	"bytes"
 	"errors"
-	"github.com/klauspost/reedsolomon"
 	"io"
+
+	"github.com/klauspost/reedsolomon"
 )
 
 var ErrShortData = errors.New("short data")
@@ -19,7 +20,6 @@ type BlockMgr struct {
 }
 
 func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *BlockMgr, err error) {
-
 	if dataShards > MaxBlockCount {
 		err = errors.New("too many data shards")
 		return
@@ -39,7 +39,6 @@ func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *Block
 }
 
 func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader, err error) {
-
 	shards := m.DataShards + m.ParShards
 	perShard := (size + int64(m.DataShards) - 1) / int64(m.DataShards)
 	padding := make([]byte, (int64(shards)*perShard)-size)

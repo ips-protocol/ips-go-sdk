@@ -20,8 +20,8 @@ import (
 
 	"github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
+	"github.com/ipweb-group/go-sdk/contracts/storage"
 	"github.com/ironsmile/nedomi/utils"
-	"go-sdk/contracts/storage"
 )
 
 var ErrNodeNotFound = errors.New("node not found")

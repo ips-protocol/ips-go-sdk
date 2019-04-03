@@ -6,7 +6,7 @@ import (
 	"errors"
 	"syscall"
 
-	"go-sdk/utils/bytes"
+	"github.com/ipweb-group/go-sdk/utils/bytes"
 )
 
 const MetaHeaderLength = 16

@@ -2,9 +2,10 @@ package file
 
 import (
 	"crypto/sha256"
-	"github.com/ipfs/go-cid"
-	"github.com/multiformats/go-multihash"
 	"io"
+
+	"gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
+	"gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
 )
 
 func GetCID(r io.Reader) (id string, err error) {

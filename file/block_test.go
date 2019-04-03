@@ -2,11 +2,12 @@ package file
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var blockMgr *BlockMgr
@@ -24,14 +25,8 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	fname := "./test.txt"
 
 	//test file EC shards
-	rcs, err := blockMgr.SplitFile(fname)
-	assert.Equal(t, nil, err)
 	shards := blockMgr.DataShards + blockMgr.ParShards
 	rds := make([]io.Reader, shards)
-	for i := range rcs {
-		rds[i] = rcs[i]
-		defer rcs[i].Close()
-	}
 
 	ok, err := blockMgr.Verify(rds)
 	assert.Equal(t, true, ok)
