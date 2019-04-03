@@ -1,45 +1,139 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	pstore "gx/ipfs/QmaCTz9RkrU13bm9kMB54f7atgqM4qkjDZpRwRoJiWXEqs/go-libp2p-peerstore"
-	"time"
-
-	p2p "./p2p"
+	"github.com/ipfs/go-ipfs/core"
+	"go-sdk/conf"
+	"go-sdk/p2p"
+	"go-sdk/rpc"
+	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
+	"io"
+	"io/ioutil"
 )
 
-func main1() {
-	cfg := p2p.Config{
-		RendezvousString: "_ipfs-discovery._udp",
-		ProtocolID:       "test/abc",
-		ListenHost:       "0.0.0.0",
-		ListenPort:       9999,
-	}
+func main() {
 
-	ps, host, err := p2p.FindPeers(cfg)
+	ctx := context.Background()
+
+	ds := datastore.NewNullDatastore()
+	repo, err := p2p.DefaultRepo(ds)
 	if err != nil {
 		panic(err)
 	}
 
-	peers := []pstore.PeerInfo{}
-	go func() {
-		pm := map[string]pstore.PeerInfo{}
-		for p := range ps {
-			if _, ok := pm[p.ID.String()]; !ok {
-				fmt.Println("find peer:", p, p.ID.Pretty())
-				pm[p.ID.String()] = p
-				peers = append(peers, p)
-			} else {
-
-			}
-		}
-	}()
-
-	for {
-		fmt.Println("==>:", len(peers))
-		fmt.Println("==>:", len(p2p.GetActivePeers()))
-		fmt.Println("net work peers ==>:", host.Network().Conns())
-		time.Sleep(time.Second)
+	key, err := repo.SwarmKey()
+	fmt.Println("============>", string(key), err)
+	ncfg := &core.BuildCfg{
+		Repo: repo, //opt
+		//Permanent:                 true, //opt, true|false
+		Online: true, //required, true
+		//Online: false, //required, true
+		//DisableEncryptedConnections: false, //opt, false
+		//ExtraOpts: map[string]bool{
+		//	"pubsub": false, //opt, true|false
+		//	"ipnsps": false, //opt, false|false
+		//	"mplex":  true,  //opt,	true|false
+		//}, //opt
 	}
-	select {} //wait here
+
+	n, err := core.NewNode(ctx, ncfg)
+	if err != nil {
+		panic(err)
+	}
+
+	ccfg := conf.ContractConfig{
+		ClientKeyHex:       "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
+		StorageKeyHex:      "CED8FF231B09B14F09D8FF977C5C6C079EF4B485FC2A0D3B2955182B77310A04",
+		ContractNodeAddr:   "http://127.0.0.1:8545",
+		TransactorGasLimit: 960000,
+		TransactorGasPrice: 1,
+		TransactorValue:    1e6,
+	}
+	cfg := conf.Config{ContractConfig: ccfg, BlockUpWorkerCount: 3}
+
+	cli, err := rpc.NewClient(cfg, n)
+	if err != nil {
+		panic(err)
+	}
+
+	//cid, err := cli.Upload("/tmp/5m.txt")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("Upload success cid:", cid)
+
+	rc, meta, err := cli.Download("")
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+	defer rc.Close()
+	fc, err := ioutil.ReadAll(rc)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Download file content:", string(fc), "\tmeta data:", meta)
+
+	// upload file ---------------------------------------------------------------------------------------------------
+	//n, err := core.NewNode(ctx, ncfg)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//cli, err := rpc.NewClient(n)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//f, err := os.Open("/tmp/test.txt")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//defer f.Close()
+	//
+	//cid, err := cli.Upload(f)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("-------->", cid)
+
+	// list nodes ---------------------------------------------------------------------------------------------------
+	//n, err := core.NewNode(ctx, ncfg)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//for {
+	//	ps := n.Peerstore.Peers()
+	//	for _, p := range ps {
+	//		fmt.Println("peer: ---->", p.Pretty())
+	//
+	//		remotePeer := "Qmain1GGsLNtPmDPJsmWGYv7QxyFnbTjvFceH16yC2PCRd"
+	//		if p.Pretty() == remotePeer {
+	//			p2p.Forward(n.P2P, "/sys/http", "/ip4/127.0.0.1/tcp/8888", "/ipfs/Qmain1GGsLNtPmDPJsmWGYv7QxyFnbTjvFceH16yC2PCRd")
+	//		}
+	//	}
+	//
+	//	cns := n.PeerHost.Network().Conns()
+	//	for _, cn := range cns {
+	//		streams := cn.GetStreams()
+	//		fmt.Println("stream:", streams)
+	//	}
+	//}
+
+	// cacl cid ---------------------------------------------------------------------------------------------------
+	//n, err := core.NewNode(ctx, ncfg)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//ctx1 := p2p.Ctx(n, "")
+	//api, err := ctx1.GetAPI()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//fn, err := api.Unixfs().Add()
+	//if err != nil {
+	//	panic(err)
+	//}
 }
