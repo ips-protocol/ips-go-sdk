@@ -6,39 +6,15 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/p2p"
 	"github.com/ipweb-group/go-sdk/rpc"
-	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
 )
 
 func main() {
 
 	ctx := context.Background()
-
-	ds := datastore.NewNullDatastore()
-	repo, err := p2p.DefaultRepo(ds)
-	if err != nil {
-		panic(err)
-	}
-
-	key, err := repo.SwarmKey()
-	fmt.Println("============>", string(key), err)
-	ncfg := &core.BuildCfg{
-		Repo: repo, //opt
-		//Permanent:                 true, //opt, true|false
-		Online: true, //required, true
-		//Online: false, //required, true
-		//DisableEncryptedConnections: false, //opt, false
-		//ExtraOpts: map[string]bool{
-		//	"pubsub": false, //opt, true|false
-		//	"ipnsps": false, //opt, false|false
-		//	"mplex":  true,  //opt,	true|false
-		//}, //opt
-	}
-
-	n, err := core.NewNode(ctx, ncfg)
+	n, err := p2p.NewNode(ctx)
 	if err != nil {
 		panic(err)
 	}
