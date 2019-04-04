@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/p2p"
 	"github.com/ipweb-group/go-sdk/rpc"
 	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
-	"io"
-	"io/ioutil"
 )
 
 func main() {

@@ -3,8 +3,8 @@ package p2p
 import (
 	"fmt"
 
-	"github.com/ipfs/go-ipfs/repo"
-	"github.com/ipfs/go-ipfs/repo/fsrepo"
+	"github.com/ipweb-group/go-ipfs/repo"
+	"github.com/ipweb-group/go-ipfs/repo/fsrepo"
 )
 
 type Repo struct {
