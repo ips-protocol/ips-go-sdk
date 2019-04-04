@@ -5,9 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go-sdk/conf"
-	"go-sdk/file"
-	"go-sdk/p2p"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -20,7 +17,10 @@ import (
 
 	"github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
+	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/contracts/storage"
+	"github.com/ipweb-group/go-sdk/file"
+	"github.com/ipweb-group/go-sdk/p2p"
 	"github.com/ironsmile/nedomi/utils"
 )
 
