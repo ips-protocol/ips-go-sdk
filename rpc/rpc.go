@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-ipfs-api"
-	"github.com/ipweb-group/go-ipfs/core"
+	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/contracts/storage"
 	"github.com/ipweb-group/go-sdk/file"
