@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"strconv"
 
 	"github.com/ipfs/go-ipfs/commands"
 	"github.com/ipfs/go-ipfs/config"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo"
+	"github.com/ipweb-group/go-sdk/utils/netools"
 	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
 	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
 	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
@@ -48,7 +50,12 @@ func DefaultRepo(dstore repo.Datastore) (repo.Repo, error) {
 	}
 
 	c.Bootstrap = config.DefaultBootstrapAddresses
-	c.Addresses.Swarm = []string{"/ip4/0.0.0.0/tcp/4001"}
+
+	port, err := netools.GetFreePort()
+	if err != nil {
+		return nil, err
+	}
+	c.Addresses.Swarm = []string{"/ip4/0.0.0.0/tcp/" + strconv.Itoa(port)}
 	c.Identity.PeerID = pid.Pretty()
 	c.Identity.PrivKey = base64.StdEncoding.EncodeToString(privkeyb)
 	c.Discovery.MDNS.Enabled = true

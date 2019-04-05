@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"net"
 	"os"
 	"path"
 	"strconv"
@@ -22,6 +21,7 @@ import (
 	"github.com/ipweb-group/go-sdk/contracts/storage"
 	"github.com/ipweb-group/go-sdk/file"
 	"github.com/ipweb-group/go-sdk/p2p"
+	"github.com/ipweb-group/go-sdk/utils/netools"
 	"github.com/ironsmile/nedomi/utils"
 )
 
@@ -381,11 +381,11 @@ func (c *Client) refreshIpfsClients() error {
 		cli, err := c.NewIpfsClient(id)
 		if err != nil {
 			c.IpfsUnabailableClients[id] = cli
-			fmt.Println("bad peer: ", p.Pretty(), err)
+			log.Println("bad peer: ", p.Pretty(), err)
 			continue
 		}
 
-		fmt.Println("p2p peer: ", p.Pretty())
+		log.Println("p2p peer: ", p.Pretty())
 		clients[id] = cli
 	}
 
@@ -406,7 +406,7 @@ func (c *Client) refreshIpfsClients() error {
 }
 
 func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
-	port, err := GetFreePort()
+	port, err := netools.GetFreePort()
 	if err != nil {
 		return
 	}
@@ -440,20 +440,4 @@ func (c *Client) P2PClose(port int, peerId string) error {
 
 func (c *Client) P2PCloseAll() error {
 	return p2p.Close(c.IpfsNode.P2P, true, "", "", "")
-}
-
-func GetFreePort() (port int, err error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return
-	}
-	defer l.Close()
-
-	port = l.Addr().(*net.TCPAddr).Port
-	return
 }
