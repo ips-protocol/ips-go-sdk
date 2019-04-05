@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -89,8 +90,6 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 
-	meta := file.NewMeta(fname, cid, fi.Size(), uint32(dataShards), uint32(parShards))
-
 	shardsRdr, err := mgr.ECShards(fh, fi.Size())
 	if err != nil {
 		return
@@ -102,11 +101,12 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	}
 
 	shards := dataShards + parShards
-	//_, err = c.NewUploadJob(cid, fi.Size(), shards)
-	//if err != nil {
-	//	return
-	//}
+	_, err = c.NewUploadJob(cid, fi.Size(), shards)
+	if err != nil {
+		return
+	}
 
+	meta := file.NewMeta(fname, cid, fi.Size(), uint32(dataShards), uint32(parShards))
 	//upload block
 	shardIdCh := make(chan int, shards)
 	for i := 0; i < shards; i++ {
@@ -119,18 +119,32 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	worker := func() {
 		defer wg.Done()
 		for id := range shardIdCh {
-			//for retry
-			nodeIdx := id % len(nodes)
+			retry := 0
+		lazyTry:
+			nodeIdx := (id + retry) % len(nodes)
 			node := nodes[nodeIdx]
 
+			blkBuf := bytes.Buffer{}
+			blkRdr := io.TeeReader(shardsRdr[id], &blkBuf)
 			mr := bytes.NewBuffer(meta.Encode(id))
-			r := io.MultiReader(mr, shardsRdr[id])
+			var r io.Reader
+			if retry == 0 {
+				r = io.MultiReader(mr, blkRdr)
+			} else {
+				bufRdr := bytes.NewReader(blkBuf.Bytes())
+				r = io.MultiReader(mr, bufRdr)
+			}
 
 			blkHash, err := node.c.Add(r)
 			if err != nil {
+				if retry < len(nodes) {
+					retry++
+					log.Println("err:", err, "retrying... retry times:", retry)
+					goto lazyTry
+				}
 				errCh <- err
 			}
-			fmt.Println("Block Hash:", blkHash, err)
+			log.Println("Block Hash:", blkHash, err)
 		}
 	}
 	for i := 0; i < c.WorkerCounts; i++ {
@@ -172,6 +186,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta,
 	if err != nil {
 		return
 	}
+
 	dataShards := int(meta.MetaHeader.DataShards)
 	rcs := make([]io.ReadCloser, dataShards)
 	for i := 0; i < dataShards; i++ {
@@ -198,6 +213,7 @@ func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
 		if err1 != nil {
 			continue
 		}
+
 		meta, err = getMeta(cli, string(bi.BlockHash))
 		if err == nil {
 			return

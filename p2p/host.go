@@ -9,15 +9,14 @@ import (
 	"github.com/ipfs/go-ipfs/config"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo"
-	"github.com/ipweb-group/go-sdk/p2p"
 	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
 	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
-	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
 )
 
 func NewNode(ctx context.Context) (n *core.IpfsNode, err error) {
 	ds := datastore.NewNullDatastore()
-	repo, err := p2p.DefaultRepo(ds)
+	repo, err := DefaultRepo(ds)
 	if err != nil {
 		return
 	}

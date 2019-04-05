@@ -10,7 +10,7 @@ import (
 
 var ErrShortData = errors.New("short data")
 
-const DefaultBlockSize = 1 << 10 //256k for test
+const DefaultBlockSize = 1 << 26 //64MB default
 const MaxBlockCount = 170
 
 type BlockMgr struct {

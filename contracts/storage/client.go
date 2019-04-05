@@ -48,7 +48,7 @@ func (c *Client) GetStorageAccount(fileHash string) (stgAccountAddr common.Addre
 		return
 	}
 
-	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
+	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
 	stgAccountAddr, err = storageDeposit.GetStorageAccount(nil, fileAddress)
 	return
 }
@@ -62,7 +62,7 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *co
 	transactor.GasPrice = big.NewInt(1e3)
 	transactor.Value = big.NewInt(1e6)
 
-	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash))[0:20])
+	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
 	log.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
 	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)))
 	if err != nil {

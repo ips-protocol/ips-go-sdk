@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
-
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/p2p"
 	"github.com/ipweb-group/go-sdk/rpc"
@@ -34,22 +31,22 @@ func main() {
 		panic(err)
 	}
 
-	//cid, err := cli.Upload("/tmp/5m.txt")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("Upload success cid:", cid)
-
-	rc, meta, err := cli.Download("")
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-	defer rc.Close()
-	fc, err := ioutil.ReadAll(rc)
+	cid, err := cli.Upload("/tmp/5m.txt")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Download file content:", string(fc), "\tmeta data:", meta)
+	fmt.Println("Upload success cid:", cid)
+
+	//rc, meta, err := cli.Download("")
+	//if err != nil && err != io.EOF {
+	//	panic(err)
+	//}
+	//defer rc.Close()
+	//fc, err := ioutil.ReadAll(rc)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("Download file content:", string(fc), "\tmeta data:", meta)
 
 	// upload file ---------------------------------------------------------------------------------------------------
 	//n, err := core.NewNode(ctx, ncfg)
