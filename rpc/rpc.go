@@ -165,23 +165,10 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta,
 		return
 	}
 
-	for _, bi := range blocksInfo {
-		fmt.Println("===> PeerId:", bi.PeerId, " blk Hash:", bi.BlockHash)
-	}
-
-	//blocksInfo := []storage.BlockInfo{
-	//	{[]byte("Qmd6Nj3GFKxo3LT2gAdoVzSjoBWSfYKGdFRyLjtjKDkvJ1"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-	//	{[]byte("QmVdtWzv1Nem7BiJTMDCcvza38hMKCYARBWb4LZjsvtNYU"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-	//	{[]byte("QmYYwHMtceagVxG79fE74LETmMvyi9A6QZ9TDHeU3K6Dqv"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-	//	{[]byte("QmZM2uYRVFvWryiw6pExBberjQNSASBZsEAWeJDAy7AQDt"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-	//	{[]byte("QmTXpM13pqYToQMRgwXUhwXrmkGfBPiZ68MG9ijvMaf69G"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-	//	{[]byte("QmXcZpPCSvs6ZvRtEWmNNAfYFxEdiCYqU3TwNZ2P1sFbTW"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-	//}
 	meta, err := c.GetMeta(blocksInfo)
 	if err != nil {
 		return
 	}
-	fmt.Println("===> clients", c.IpfsClients)
 
 	dataShards := int(meta.MetaHeader.DataShards)
 	rcs := make([]io.ReadCloser, dataShards)
@@ -214,8 +201,6 @@ func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
 			return nil, err
 		}
 
-		fmt.Println("===> clients:", clients)
-
 		for _, n := range clients {
 			meta, err := getMeta(n.Client, bi.BlockHash)
 			if err == nil {
@@ -227,15 +212,12 @@ func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
 }
 
 func getMeta(node *shell.Shell, blkHash string) (m *file.Meta, err error) {
-	fmt.Println("===>node and hash:", node, blkHash)
-
 	rc1, err := ReadAt(node, blkHash, 0, file.MetaHeaderLength)
 	if err != nil {
 		return
 	}
-	//defer rc1.Close()
+	defer rc1.Close()
 	metaHeaderB, err := ioutil.ReadAll(rc1)
-	fmt.Println("===>meta header:", string(metaHeaderB))
 	if err != nil {
 		return
 	}
