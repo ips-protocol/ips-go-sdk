@@ -36,9 +36,6 @@ func NewClient(cfg conf.ContractConfig) (cli *Client, err error) {
 }
 func (c *Client) NewKeyedTransactor() *bind.TransactOpts {
 	transactor := bind.NewKeyedTransactor(c.GetClientKey())
-	//transactor.GasLimit = c.TransactorGasLimit
-	//transactor.GasPrice = big.NewInt(c.TransactorGasPrice)
-	//transactor.Value = big.NewInt(c.TransactorValue)
 	return transactor
 }
 
@@ -143,28 +140,6 @@ func (c *Client) GetBlocksInfo(fileHash string) (blocksInfo []BlockInfo, err err
 	}
 	return
 }
-
-//func (c *Client) DownloadSuccess(fileHash string) error {
-//	stgAccountAddr, err := c.GetStorageAccount(fileHash)
-//	if err != nil {
-//		return err
-//	}
-//
-//	storageAccount, err := contract.NewStorageAccount(stgAccountAddr, c)
-//	if err != nil {
-//		return err
-//	}
-//
-//	transactor := c.NewKeyedTransactor()
-//	tx, err := storageAccount.DownloadSuccess(transactor)
-//	if err != nil {
-//		return err
-//	}
-//
-//	ctx := context.Background()
-//	_, err = c.waitTransactionReceipt(ctx, tx.Hash())
-//	return err
-//}
 
 func (c *Client) waitTransactionReceipt(ctx context.Context, tx common.Hash) (receipt *types.Receipt, err error) {
 	for {

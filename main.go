@@ -17,12 +17,8 @@ func main() {
 	}
 
 	ccfg := conf.ContractConfig{
-		ClientKeyHex:       "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
-		StorageKeyHex:      "CED8FF231B09B14F09D8FF977C5C6C079EF4B485FC2A0D3B2955182B77310A04",
-		ContractNodeAddr:   "http://127.0.0.1:8545",
-		TransactorGasLimit: 960000,
-		TransactorGasPrice: 1,
-		TransactorValue:    1e6,
+		ClientKeyHex:     "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
+		ContractNodeAddr: "http://127.0.0.1:8545",
 	}
 	cfg := conf.Config{ContractConfig: ccfg, BlockUpWorkerCount: 3}
 
