@@ -6,6 +6,8 @@ import (
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/p2p"
 	"github.com/ipweb-group/go-sdk/rpc"
+	"io"
+	"io/ioutil"
 )
 
 func main() {
@@ -18,7 +20,7 @@ func main() {
 
 	ccfg := conf.ContractConfig{
 		ClientKeyHex:     "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
-		ContractNodeAddr: "http://127.0.0.1:8545",
+		ContractNodeAddr: "http://180.97.144.190:8545",
 	}
 	cfg := conf.Config{ContractConfig: ccfg, BlockUpWorkerCount: 3}
 
@@ -27,22 +29,22 @@ func main() {
 		panic(err)
 	}
 
-	cid, err := cli.Upload("/tmp/5m.txt")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Upload success cid:", cid)
-
-	//rc, meta, err := cli.Download("")
-	//if err != nil && err != io.EOF {
-	//	panic(err)
-	//}
-	//defer rc.Close()
-	//fc, err := ioutil.ReadAll(rc)
+	//cid, err := cli.Upload("/tmp/5m.txt")
 	//if err != nil {
 	//	panic(err)
 	//}
-	//fmt.Println("Download file content:", string(fc), "\tmeta data:", meta)
+	//fmt.Println("Upload success cid:", cid)
+
+	rc, meta, err := cli.Download("QmVQfe4DN8oAFRiTy9PLuCNhRxcbR6cYFc2XhJQJfwMc9d")
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+	defer rc.Close()
+	fc, err := ioutil.ReadAll(rc)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Download file content:", string(fc), "\tmeta data:", meta)
 
 	// upload file ---------------------------------------------------------------------------------------------------
 	//n, err := core.NewNode(ctx, ncfg)

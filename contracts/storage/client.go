@@ -108,8 +108,8 @@ func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx 
 }
 
 type BlockInfo struct {
-	BlockHash []byte
-	PeerId    []byte
+	BlockHash string
+	PeerId    string
 }
 
 func (c *Client) GetBlocksInfo(fileHash string) (blocksInfo []BlockInfo, err error) {
@@ -136,7 +136,7 @@ func (c *Client) GetBlocksInfo(fileHash string) (blocksInfo []BlockInfo, err err
 			return nil, err
 		}
 
-		blocksInfo = append(blocksInfo, BlockInfo{blkInfo.BlockHash, blkInfo.PeerInfo})
+		blocksInfo = append(blocksInfo, BlockInfo{string(blkInfo.BlockHash), string(blkInfo.PeerInfo)})
 	}
 	return
 }

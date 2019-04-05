@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 	"path"
 	"strconv"
@@ -44,7 +43,7 @@ func NewClient(cfg conf.Config, node *core.IpfsNode) (cli *Client, err error) {
 	cli = &Client{IpfsNode: node}
 	cli.IpfsClients = make(map[string]*shell.Shell)
 	cli.IpfsUnabailableClients = make(map[string]*shell.Shell)
-	cli.NodesRefreshInterval = time.Second
+	cli.NodesRefreshInterval = time.Second * 10
 	cli.DurationToDiscoveryNodes = time.Second * 3
 	cli.WorkerCounts = cfg.BlockUpWorkerCount
 	if cli.WorkerCounts == 0 {
@@ -95,7 +94,7 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		return
 	}
 
-	nodes, err := c.GetIpfsClientsWithId()
+	nodes, err := c.GetNodeClients("")
 	if err != nil {
 		return
 	}
@@ -135,7 +134,7 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 				r = io.MultiReader(mr, bufRdr)
 			}
 
-			blkHash, err := node.c.Add(r)
+			blkHash, err := node.Client.Add(r)
 			if err != nil {
 				if retry < len(nodes) {
 					retry++
@@ -161,74 +160,82 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 }
 
 func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta, err error) {
-	//blocksInfo, err := c.GetBlocksInfo(fileHash)
-	//log.Println("GetBlocksInfo fileHash:", fileHash, "\tblocks info:", blocksInfo, "\terr:", err)
-	//if err != nil {
-	//	return
-	//}
-
-	blocksInfo := []storage.BlockInfo{
-		{[]byte("Qmd6Nj3GFKxo3LT2gAdoVzSjoBWSfYKGdFRyLjtjKDkvJ1"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-		{[]byte("QmVdtWzv1Nem7BiJTMDCcvza38hMKCYARBWb4LZjsvtNYU"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-		{[]byte("QmYYwHMtceagVxG79fE74LETmMvyi9A6QZ9TDHeU3K6Dqv"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-		{[]byte("QmZM2uYRVFvWryiw6pExBberjQNSASBZsEAWeJDAy7AQDt"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-		{[]byte("QmTXpM13pqYToQMRgwXUhwXrmkGfBPiZ68MG9ijvMaf69G"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-		{[]byte("QmXcZpPCSvs6ZvRtEWmNNAfYFxEdiCYqU3TwNZ2P1sFbTW"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
-	}
-
-	firstBlock := blocksInfo[0]
-	node, err := c.getIpfsClientOrRandom(string(firstBlock.PeerId))
+	blocksInfo, err := c.GetBlocksInfo(fileHash)
 	if err != nil {
 		return
 	}
 
+	for _, bi := range blocksInfo {
+		fmt.Println("===> PeerId:", bi.PeerId, " blk Hash:", bi.BlockHash)
+	}
+
+	//blocksInfo := []storage.BlockInfo{
+	//	{[]byte("Qmd6Nj3GFKxo3LT2gAdoVzSjoBWSfYKGdFRyLjtjKDkvJ1"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+	//	{[]byte("QmVdtWzv1Nem7BiJTMDCcvza38hMKCYARBWb4LZjsvtNYU"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+	//	{[]byte("QmYYwHMtceagVxG79fE74LETmMvyi9A6QZ9TDHeU3K6Dqv"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+	//	{[]byte("QmZM2uYRVFvWryiw6pExBberjQNSASBZsEAWeJDAy7AQDt"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+	//	{[]byte("QmTXpM13pqYToQMRgwXUhwXrmkGfBPiZ68MG9ijvMaf69G"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+	//	{[]byte("QmXcZpPCSvs6ZvRtEWmNNAfYFxEdiCYqU3TwNZ2P1sFbTW"), []byte("QmWb9ra6trs9HpXp4dRH1WPucV7Xin3cG3AD4Dswp4sEmk")},
+	//}
 	meta, err := c.GetMeta(blocksInfo)
 	if err != nil {
 		return
 	}
+	fmt.Println("===> clients", c.IpfsClients)
 
 	dataShards := int(meta.MetaHeader.DataShards)
 	rcs := make([]io.ReadCloser, dataShards)
 	for i := 0; i < dataShards; i++ {
 		blockInfo := blocksInfo[i]
-		node, err = c.getIpfsClientOrRandom(string(blockInfo.PeerId))
-		if err != nil {
-			return
-		}
-		rc1, err1 := ReadAt(node, string(blockInfo.BlockHash), int64(meta.Len()), 0)
+		ns, err1 := c.GetNodeClients(blockInfo.PeerId)
 		if err1 != nil {
 			err = err1
 			return
 		}
+
+		var rc1 io.ReadCloser
+		for _, n := range ns {
+			rc1, err1 = ReadAt(n.Client, blockInfo.BlockHash, int64(meta.Len()), 0)
+			if err1 == nil {
+				break
+			}
+		}
+
 		rcs[i] = rc1
 	}
 	rc = utils.MultiReadCloser(rcs...)
-	//err = c.DownloadSuccess(fileHash)
 	return
 }
 
 func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
 	for _, bi := range bis {
-		cli, err1 := c.getIpfsClientOrRandom(string(bi.PeerId))
-		if err1 != nil {
-			continue
+		clients, err := c.GetNodeClients(bi.PeerId)
+		if err != nil {
+			return nil, err
 		}
 
-		meta, err = getMeta(cli, string(bi.BlockHash))
-		if err == nil {
-			return
+		fmt.Println("===> clients:", clients)
+
+		for _, n := range clients {
+			meta, err := getMeta(n.Client, bi.BlockHash)
+			if err == nil {
+				return meta, err
+			}
 		}
 	}
 	return
 }
 
 func getMeta(node *shell.Shell, blkHash string) (m *file.Meta, err error) {
+	fmt.Println("===>node and hash:", node, blkHash)
+
 	rc1, err := ReadAt(node, blkHash, 0, file.MetaHeaderLength)
 	if err != nil {
 		return
 	}
-	defer rc1.Close()
+	//defer rc1.Close()
 	metaHeaderB, err := ioutil.ReadAll(rc1)
+	fmt.Println("===>meta header:", string(metaHeaderB))
 	if err != nil {
 		return
 	}
@@ -264,92 +271,47 @@ func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadClose
 	return
 }
 
-func (c *Client) getIpfsClientOrRandom(pId string) (node *shell.Shell, err error) {
-	node, exist := c.GetIpfsClient(pId)
-	if exist {
-		return
-	}
-
-	node, err = c.GetRandomIpfsClient()
-	return
-}
-
-func (c *Client) GetRandomIpfsClient() (node *shell.Shell, err error) {
-	nodes, err := c.GetIpfsClients()
-	if err != nil {
-		return
-	}
-
-	rand.Seed(time.Now().Unix())
-	node = nodes[rand.Intn(len(nodes))]
-	return
-}
-
-func (c *Client) GetIpfsClient(pId string) (node *shell.Shell, exist bool) {
+func (c *Client) GetClientByPeerId(pId string) (node *shell.Shell, exist bool) {
 	if c.needRefresh() {
-		c.refreshIpfsClients()
+		c.refreshNodePeers()
 	}
 
 	node, exist = c.IpfsClients[pId]
 	return
 }
 
-type IpfsClientWithId struct {
-	id string
-	c  *shell.Shell
+type NodeClient struct {
+	Id     string
+	Client *shell.Shell
 }
 
-func (c *Client) GetIpfsClientsWithId() (cs []IpfsClientWithId, err error) {
-	getClientWithId := func() []IpfsClientWithId {
-		cs := []IpfsClientWithId{}
-		for id, c := range c.IpfsClients {
-			cs = append(cs, IpfsClientWithId{id, c})
+func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClient, err error) {
+	getNodes := func() []NodeClient {
+		var ns1, ns2 []NodeClient
+		for id, n := range c.IpfsClients {
+			if id == nodeIdMoveToFirstElement {
+				ns1 = append(ns1, NodeClient{Id: id, Client: n})
+				continue
+			}
+			ns2 = append(ns2, NodeClient{id, n})
 		}
-		return cs
+		return append(ns1, ns2...)
 	}
 	if !c.needRefresh() {
-		cs = getClientWithId()
+		ns = getNodes()
 		return
 	}
 
-	err = c.refreshIpfsClients()
+	err = c.refreshNodePeers()
 	if err == ErrNodeNotFound {
 		time.Sleep(c.DurationToDiscoveryNodes)
-		err = c.refreshIpfsClients()
+		err = c.refreshNodePeers()
 	}
 	if err != nil {
 		return
 	}
 
-	cs = getClientWithId()
-	return
-}
-
-func (c *Client) GetIpfsClients() (ss []*shell.Shell, err error) {
-
-	if !c.needRefresh() {
-		ss = c.ipfsClients()
-		return
-	}
-
-	err = c.refreshIpfsClients()
-	if err == ErrNodeNotFound {
-		time.Sleep(c.DurationToDiscoveryNodes)
-		err = c.refreshIpfsClients()
-	}
-	if err != nil {
-		return
-	}
-
-	ss = c.ipfsClients()
-	return
-}
-
-func (c *Client) ipfsClients() (ss []*shell.Shell) {
-	for _, ic := range c.IpfsClients {
-		ss = append(ss, ic)
-	}
-
+	ns = getNodes()
 	return
 }
 
@@ -361,8 +323,8 @@ func (c *Client) needRefresh() bool {
 	return false
 }
 
-func (c *Client) refreshIpfsClients() error {
-
+func (c *Client) refreshNodePeers() error {
+	c.NodesRefreshTime = time.Now()
 	clients := make(map[string]*shell.Shell)
 	ps := c.IpfsNode.Peerstore.Peers()
 	for _, p := range ps {
@@ -381,6 +343,7 @@ func (c *Client) refreshIpfsClients() error {
 		cli, err := c.NewIpfsClient(id)
 		if err != nil {
 			c.IpfsUnabailableClients[id] = cli
+			c.P2PClose(0, id)
 			log.Println("bad peer: ", p.Pretty(), err)
 			continue
 		}
