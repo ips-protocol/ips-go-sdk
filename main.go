@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/ipweb-group/go-sdk/conf"
-	"github.com/ipweb-group/go-sdk/p2p"
 	"github.com/ipweb-group/go-sdk/rpc"
 	"io"
 	"io/ioutil"
@@ -12,19 +10,13 @@ import (
 
 func main() {
 
-	ctx := context.Background()
-	n, err := p2p.NewNode(ctx)
-	if err != nil {
-		panic(err)
-	}
-
 	ccfg := conf.ContractConfig{
 		ClientKeyHex:     "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
 		ContractNodeAddr: "http://180.97.144.190:8545",
 	}
-	cfg := conf.Config{ContractConfig: ccfg, BlockUpWorkerCount: 3}
+	cfg := conf.Config{ContractConf: ccfg, BlockUpWorkerCount: 3}
 
-	cli, err := rpc.NewClient(cfg, n)
+	cli, err := rpc.NewClient(cfg)
 	if err != nil {
 		panic(err)
 	}

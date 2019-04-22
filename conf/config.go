@@ -2,6 +2,9 @@ package conf
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
+	"io/ioutil"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,7 +34,22 @@ func (cfg ContractConfig) GetClientAddress() common.Address {
 }
 
 type Config struct {
-	BlockUpWorkerCount int `json:"block_up_worker_count"`
+	NodesRefreshIntervalInSecond int            `json:"nodes_refresh_interval_in_second"`
+	BlockUpWorkerCount           int            `json:"block_up_worker_count"`
+	ContractConf                 ContractConfig `json:"contract_conf"`
 	ECConfig
-	ContractConfig
+}
+
+func LoadConf(cfg interface{}, cfgPath string) error {
+	f, err := os.Open(cfgPath)
+	if err != nil {
+		return err
+	}
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(b, cfg)
 }

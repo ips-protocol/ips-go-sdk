@@ -29,67 +29,60 @@ var ErrNodeNotFound = errors.New("node not found")
 const P2pProtocl = "/sys/http"
 
 type Client struct {
-	IpfsClients              map[string]*shell.Shell
-	IpfsUnabailableClients   map[string]*shell.Shell
-	NodesRefreshTime         time.Time
-	NodesRefreshInterval     time.Duration
-	DurationToDiscoveryNodes time.Duration
-	WorkerCounts             int
+	IpfsClients            map[string]*shell.Shell
+	IpfsUnabailableClients map[string]*shell.Shell
+	NodesRefreshTime       time.Time
+	NodesRefreshDuration   time.Duration
+	BlockUpWorkerCount     int
 	*storage.Client
 	*core.IpfsNode
 }
 
-func NewClient(cfg conf.Config, node *core.IpfsNode) (cli *Client, err error) {
-	cli = &Client{IpfsNode: node}
-	cli.IpfsClients = make(map[string]*shell.Shell)
-	cli.IpfsUnabailableClients = make(map[string]*shell.Shell)
-	cli.NodesRefreshInterval = time.Second * 10
-	cli.DurationToDiscoveryNodes = time.Second * 3
-	cli.WorkerCounts = cfg.BlockUpWorkerCount
-	if cli.WorkerCounts == 0 {
-		cli.WorkerCounts = 2
+func NewClient(cfg conf.Config) (cli *Client, err error) {
+	ctx := context.Background()
+	n, err := p2p.NewNode(ctx)
+	if err != nil {
+		return
 	}
 
-	c, err := storage.NewClient(cfg.ContractConfig)
+	cli = &Client{IpfsNode: n}
+	cli.IpfsClients = make(map[string]*shell.Shell)
+	cli.IpfsUnabailableClients = make(map[string]*shell.Shell)
+	if cfg.NodesRefreshIntervalInSecond == 0 {
+		cfg.NodesRefreshIntervalInSecond = 300
+	}
+
+	cli.NodesRefreshDuration = time.Minute * time.Duration(cfg.NodesRefreshIntervalInSecond)
+	cli.BlockUpWorkerCount = cfg.BlockUpWorkerCount
+	if cfg.BlockUpWorkerCount == 0 {
+		cfg.BlockUpWorkerCount = 2
+	}
+
+	c, err := storage.NewClient(cfg.ContractConf)
 	if err != nil {
 		return
 	}
 	cli.Client = c
+	go cli.refreshNodePeers()
 
 	return
 }
 
-func (c *Client) Upload(fpath string) (cid string, err error) {
-
-	fname := path.Base(fpath)
-	fh, err := os.Open(fpath)
-	if err != nil {
-		return
-	}
-	defer fh.Close()
-
-	fi, err := fh.Stat()
+func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, err error) {
+	br := &bytes.Buffer{}
+	cidRdr := io.TeeReader(rdr, br)
+	cid, err = file.GetCID(cidRdr)
 	if err != nil {
 		return
 	}
 
-	//cid
-	cid, err = file.GetCID(fh)
-	if err != nil {
-		return
-	}
-	_, err = fh.Seek(io.SeekStart, io.SeekStart)
-	if err != nil {
-		return
-	}
-
-	dataShards, parShards := file.BlockCount(fi.Size())
+	dataShards, parShards := file.BlockCount(fsize)
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
 		return
 	}
 
-	shardsRdr, err := mgr.ECShards(fh, fi.Size())
+	shardsRdr, err := mgr.ECShards(br, fsize)
 	if err != nil {
 		return
 	}
@@ -100,13 +93,12 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	}
 
 	shards := dataShards + parShards
-	_, err = c.NewUploadJob(cid, fi.Size(), shards)
+	_, err = c.NewUploadJob(cid, fsize, shards)
 	if err != nil {
 		return
 	}
 
-	meta := file.NewMeta(fname, cid, fi.Size(), uint32(dataShards), uint32(parShards))
-	//upload block
+	meta := file.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 	shardIdCh := make(chan int, shards)
 	for i := 0; i < shards; i++ {
 		shardIdCh <- i
@@ -114,7 +106,7 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 	close(shardIdCh)
 	errCh := make(chan error, shards)
 	wg := sync.WaitGroup{}
-	wg.Add(c.WorkerCounts)
+	wg.Add(c.BlockUpWorkerCount)
 	worker := func() {
 		defer wg.Done()
 		for id := range shardIdCh {
@@ -146,7 +138,7 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 			log.Println("Block Hash:", blkHash, err)
 		}
 	}
-	for i := 0; i < c.WorkerCounts; i++ {
+	for i := 0; i < c.BlockUpWorkerCount; i++ {
 		go worker()
 	}
 	wg.Wait()
@@ -156,6 +148,23 @@ func (c *Client) Upload(fpath string) (cid string, err error) {
 		err = err1
 	}
 
+	return
+}
+
+func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
+	fname := path.Base(fpath)
+	fh, err := os.Open(fpath)
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+
+	fi, err := fh.Stat()
+	if err != nil {
+		return
+	}
+
+	cid, err = c.Upload(fh, fname, fi.Size())
 	return
 }
 
@@ -286,7 +295,6 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 
 	err = c.refreshNodePeers()
 	if err == ErrNodeNotFound {
-		time.Sleep(c.DurationToDiscoveryNodes)
 		err = c.refreshNodePeers()
 	}
 	if err != nil {
@@ -298,7 +306,8 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 }
 
 func (c *Client) needRefresh() bool {
-	timeOut := c.NodesRefreshTime.Add(c.NodesRefreshInterval).Before(time.Now())
+	timeOut := c.NodesRefreshTime.Add(c.NodesRefreshDuration).Before(time.Now())
+
 	if timeOut || len(c.IpfsClients) == 0 {
 		return true
 	}

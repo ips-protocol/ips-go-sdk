@@ -1,0 +1,13 @@
+{
+  "server_host": ":9090",
+  "server_write_timeout_in_second": 15,
+  "server_read_timeout_in_second": 15,
+  "node_conf": {
+    "nodes_refresh_interval_in_minute": 1,
+    "block_up_worker_count": 8,
+    "contract_conf": {
+        "client_key_hex": "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
+        "contract_node_addr": "http://180.97.144.190:8545"
+    }
+  }
+}
