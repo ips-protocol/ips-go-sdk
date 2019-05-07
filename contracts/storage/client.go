@@ -12,11 +12,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/storage/contract"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ipweb-group/go-sdk/conf"
-	"github.com/ipweb-group/ipw/contracts/storage/contract"
 )
 
 var storageDepositContractAddr = common.HexToAddress("0x0000000000000000000000000000000000000010")
