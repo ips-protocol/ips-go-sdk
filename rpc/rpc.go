@@ -51,12 +51,12 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	if cfg.NodesRefreshIntervalInSecond == 0 {
 		cfg.NodesRefreshIntervalInSecond = 300
 	}
-
 	cli.NodesRefreshDuration = time.Minute * time.Duration(cfg.NodesRefreshIntervalInSecond)
-	cli.BlockUpWorkerCount = cfg.BlockUpWorkerCount
+
 	if cfg.BlockUpWorkerCount == 0 {
 		cfg.BlockUpWorkerCount = 2
 	}
+	cli.BlockUpWorkerCount = cfg.BlockUpWorkerCount
 
 	c, err := storage.NewClient(cfg.ContractConf)
 	if err != nil {
@@ -76,11 +76,12 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 		return
 	}
 
-	dataShards, parShards := file.BlockCount(fsize)
+	dataShards, parShards, shardSize := file.BlockCount(fsize)
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
 		return
 	}
+	meta := file.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 
 	shardsRdr, err := mgr.ECShards(br, fsize)
 	if err != nil {
@@ -93,12 +94,12 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	}
 
 	shards := dataShards + parShards
-	_, err = c.NewUploadJob(cid, fsize, shards)
+	shardSize += int64(len(meta.Encode(0)))
+	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
 	if err != nil {
 		return
 	}
 
-	meta := file.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 	shardIdCh := make(chan int, shards)
 	for i := 0; i < shards; i++ {
 		shardIdCh <- i

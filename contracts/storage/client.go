@@ -50,7 +50,7 @@ func (c *Client) GetStorageAccount(fileHash string) (stgAccountAddr common.Addre
 	return
 }
 
-func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *contract.StorageDepositNewUploadJob, err error) {
+func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSize int64) (job *contract.StorageDepositNewUploadJob, err error) {
 	storageDeposit, err := contract.NewStorageDeposit(storageDepositContractAddr, c)
 	if err != nil {
 		return
@@ -61,7 +61,7 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int) (job *co
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
 	log.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
-	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)))
+	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)), big.NewInt(shardSize))
 	if err != nil {
 		return
 	}

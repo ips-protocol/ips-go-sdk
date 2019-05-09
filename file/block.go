@@ -67,11 +67,13 @@ func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader
 	return
 }
 
-func BlockCount(fsize int64) (dataShards, parShards int) {
+func BlockCount(fsize int64) (dataShards, parShards int, shardSize int64) {
 	dataShards = int((fsize + int64(DefaultBlockSize) - 1) / int64(DefaultBlockSize))
 	if dataShards > MaxBlockCount {
 		dataShards = MaxBlockCount
 	}
 	parShards = int((dataShards + 2) / 3)
+
+	shardSize = (fsize + int64(dataShards) - 1) / int64(dataShards)
 	return
 }
