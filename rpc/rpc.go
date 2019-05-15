@@ -14,8 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-ipfs-api"
+	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
+	"github.com/ipfs/go-ipfs/metafile"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/contracts/storage"
 	"github.com/ipweb-group/go-sdk/file"
@@ -81,7 +82,7 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	if err != nil {
 		return
 	}
-	meta := file.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
+	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 
 	shardsRdr, err := mgr.ECShards(br, fsize)
 	if err != nil {
@@ -169,7 +170,7 @@ func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
 	return
 }
 
-func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta, err error) {
+func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
 	blocksInfo, err := c.GetBlocksInfo(fileHash)
 	if err != nil {
 		return
@@ -204,7 +205,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll file.Meta,
 	return
 }
 
-func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
+func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *metafile.Meta, err error) {
 	for _, bi := range bis {
 		clients, err := c.GetNodeClients(bi.PeerId)
 		if err != nil {
@@ -221,8 +222,8 @@ func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *file.Meta, err error) {
 	return
 }
 
-func getMeta(node *shell.Shell, blkHash string) (m *file.Meta, err error) {
-	rc1, err := ReadAt(node, blkHash, 0, file.MetaHeaderLength)
+func getMeta(node *shell.Shell, blkHash string) (m *metafile.Meta, err error) {
+	rc1, err := ReadAt(node, blkHash, 0, metafile.MetaHeaderLength)
 	if err != nil {
 		return
 	}
@@ -231,12 +232,12 @@ func getMeta(node *shell.Shell, blkHash string) (m *file.Meta, err error) {
 	if err != nil {
 		return
 	}
-	metaHeader, err := file.DecodeMetaHeader(metaHeaderB)
+	metaHeader, err := metafile.DecodeMetaHeader(metaHeaderB)
 	if err != nil {
 		return
 	}
 
-	metaLen := file.MetaHeaderLength + metaHeader.MetaBodyLength
+	metaLen := metafile.MetaHeaderLength + metaHeader.MetaBodyLength
 	rc2, err := ReadAt(node, blkHash, 0, int64(metaLen))
 	if err != nil {
 		return
@@ -247,7 +248,7 @@ func getMeta(node *shell.Shell, blkHash string) (m *file.Meta, err error) {
 		return
 	}
 
-	return file.DecodeMeta(metaData)
+	return metafile.DecodeMeta(metaData)
 }
 
 func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadCloser, err error) {
