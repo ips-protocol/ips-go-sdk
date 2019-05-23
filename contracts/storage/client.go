@@ -56,8 +56,17 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSiz
 		return
 	}
 	transactor := c.NewKeyedTransactor()
-	transactor.GasPrice = big.NewInt(1e3)
-	transactor.Value = big.NewInt(1e6)
+
+	bytePrice, err := storageDeposit.BytePrice(nil)
+	if err != nil {
+		fmt.Println("client.NewUploadJob 1.5=", err)
+		return
+	}
+	// TODO temp value
+	bytePrice.SetInt64(931322574)
+	transactor.GasPrice = big.NewInt(0)
+	fmt.Println("client.NewUploadJob bytePrice, shardSize, shards=", bytePrice, shardSize, shards)
+	transactor.Value = big.NewInt(bytePrice.Int64() * shardSize * int64(shards))
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
 	log.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
@@ -87,25 +96,25 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSiz
 	return
 }
 
-func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx int, blockHash, peerId string) error {
+// func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx int, blockHash, peerId string) error {
 
-	stgAccount, err := contract.NewStorageAccount(job.StorageAccount, c)
-	if err != nil {
-		return err
-	}
-	transactor := c.NewKeyedTransactor()
+// 	stgAccount, err := contract.NewStorageAccount(job.StorageAccount, c)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	transactor := c.NewKeyedTransactor()
 
-	log.Println("CommitBlock blockIdx:", blockIdx, "\t blockHash:", blockHash, "\tpeerId:", peerId)
-	_, err = stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
-	if err != nil {
-		return err
-	}
+// 	log.Println("CommitBlock blockIdx:", blockIdx, "\t blockHash:", blockHash, "\tpeerId:", peerId)
+// 	_, err = stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
+// 	if err != nil {
+// 		return err
+// 	}
 
-	//ctx := context.Background()
-	//_, err = c.waitTransactionReceipt(ctx, tx.Hash())
-	//return err
-	return nil
-}
+// 	//ctx := context.Background()
+// 	//_, err = c.waitTransactionReceipt(ctx, tx.Hash())
+// 	//return err
+// 	return nil
+// }
 
 type BlockInfo struct {
 	BlockHash string

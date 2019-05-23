@@ -34,7 +34,7 @@ func (s *Service) FileUpload(ctx iris.Context) {
 
 	cid, err := s.Node.Upload(file, fi.Filename, fi.Size)
 	if err != nil {
-		lg.Error("upload to ipfs failed:", err)
+		lg.Error("upload to ipws failed: ", err)
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.JSON(iris.Map{"err": err.Error()})
 		return

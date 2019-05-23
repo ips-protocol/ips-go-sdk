@@ -2,17 +2,18 @@ package main
 
 import (
 	"fmt"
-	"github.com/ipweb-group/go-sdk/conf"
-	"github.com/ipweb-group/go-sdk/rpc"
 	"io"
 	"io/ioutil"
+
+	"github.com/ipweb-group/go-sdk/conf"
+	"github.com/ipweb-group/go-sdk/rpc"
 )
 
 func main() {
 
 	ccfg := conf.ContractConfig{
-		ClientKeyHex:     "92D38B6F671F575EC9E47102364F53CA7F75B706A43606AA570E53917CBE2F9C",
-		ContractNodeAddr: "http://180.97.144.190:8545",
+		ClientKeyHex:     "5BEE78415C36E7DC7C7652957157C3E74011E1E8A8A344BD738A17E64DE37988",
+		ContractNodeAddr: "http://180.97.144.181:8545",
 	}
 	cfg := conf.Config{ContractConf: ccfg, BlockUpWorkerCount: 3}
 

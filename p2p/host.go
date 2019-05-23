@@ -6,19 +6,21 @@ import (
 	"encoding/base64"
 	"strconv"
 
+	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
+	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
+	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+
 	"github.com/ipfs/go-ipfs/commands"
 	"github.com/ipfs/go-ipfs/config"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo"
+	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/utils/netools"
-	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
-	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
-	"gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
 )
 
-func NewNode(ctx context.Context) (n *core.IpfsNode, err error) {
+func NewNode(ctx context.Context, cfg conf.Config) (n *core.IpfsNode, err error) {
 	ds := datastore.NewNullDatastore()
-	repo, err := DefaultRepo(ds)
+	repo, err := DefaultRepo(ds, cfg)
 	if err != nil {
 		return
 	}
@@ -32,7 +34,7 @@ func NewNode(ctx context.Context) (n *core.IpfsNode, err error) {
 	return
 }
 
-func DefaultRepo(dstore repo.Datastore) (repo.Repo, error) {
+func DefaultRepo(dstore repo.Datastore, cfg conf.Config) (repo.Repo, error) {
 	c := config.Config{}
 	priv, pub, err := ci.GenerateKeyPairWithReader(ci.RSA, 1024, rand.Reader)
 	if err != nil {
@@ -61,6 +63,9 @@ func DefaultRepo(dstore repo.Datastore) (repo.Repo, error) {
 	c.Discovery.MDNS.Enabled = true
 	c.Discovery.MDNS.Interval = 1
 	c.Routing.Type = "dhtclient"
+
+	c.Chain.URL = cfg.ContractConf.ContractNodeAddr
+	c.Chain.WalletPriKey = cfg.ContractConf.ClientKeyHex
 
 	mockRepo := &repo.Mock{
 		D: dstore,

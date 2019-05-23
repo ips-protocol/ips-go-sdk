@@ -41,7 +41,7 @@ type Client struct {
 
 func NewClient(cfg conf.Config) (cli *Client, err error) {
 	ctx := context.Background()
-	n, err := p2p.NewNode(ctx)
+	n, err := p2p.NewNode(ctx, cfg)
 	if err != nil {
 		return
 	}
