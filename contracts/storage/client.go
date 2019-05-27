@@ -57,16 +57,16 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSiz
 	}
 	transactor := c.NewKeyedTransactor()
 
-	bytePrice, err := storageDeposit.BytePrice(nil)
+	bytePrice, err := storageDeposit.GetBytePrice(nil)
 	if err != nil {
-		fmt.Println("client.NewUploadJob 1.5=", err)
 		return
 	}
-	// TODO temp value
-	bytePrice.SetInt64(931322574)
 	transactor.GasPrice = big.NewInt(0)
 	fmt.Println("client.NewUploadJob bytePrice, shardSize, shards=", bytePrice, shardSize, shards)
-	transactor.Value = big.NewInt(bytePrice.Int64() * shardSize * int64(shards))
+	value := big.NewInt(bytePrice.Int64())
+	value.Mul(value, big.NewInt(shardSize))
+	value.Mul(value, big.NewInt(int64(shards)))
+	transactor.Value = value
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
 	log.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
