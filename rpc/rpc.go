@@ -137,7 +137,7 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 				}
 				errCh <- err
 			}
-			log.Println("Block Hash:", blkHash, err)
+			log.Println("Block Hash:", blkHash, node.Id, err)
 		}
 	}
 	for i := 0; i < c.BlockUpWorkerCount; i++ {
@@ -220,6 +220,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.M
 			if err1 == nil {
 				break
 			}
+			log.Println("Block Hash:", blockInfo.BlockHash, n.Id, err)
 		}
 
 		rcs[i] = rc1
