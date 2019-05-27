@@ -170,6 +170,29 @@ func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
 	return
 }
 
+func (c *Client) Remove(fHash string, recursive, force bool) error {
+	blocksInfo, err := c.GetBlocksInfo(fHash)
+	if err != nil {
+		return err
+	}
+
+	for _, bi := range blocksInfo {
+		ns, err := c.GetNodeClients(bi.PeerId)
+		if err != nil {
+			return err
+		}
+
+		for _, n := range ns {
+			err = Rm(n.Client, bi.BlockHash, recursive, force)
+			if err == nil {
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
 	blocksInfo, err := c.GetBlocksInfo(fileHash)
 	if err != nil {
@@ -262,6 +285,14 @@ func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadClose
 	}
 	rc = resp.Output
 	return
+}
+
+// Remove the given path
+func Rm(s *shell.Shell, path string, recursive, force bool) error {
+	return s.Request("pin/add", path).
+		Option("recursive", recursive).
+		Option("force", force).
+		Exec(context.Background(), nil)
 }
 
 func (c *Client) GetClientByPeerId(pId string) (node *shell.Shell, exist bool) {
