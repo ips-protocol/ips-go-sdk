@@ -103,51 +103,16 @@ func (c *Client) DeleteFile(fileHash string) error {
 	}
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
-	accountAddr, err := storageDeposit.GetStorageAccount(nil, fileAddress)
-	if err != nil {
-		return err
-	}
-
 	transactor := c.NewKeyedTransactor()
 	tx, err := storageDeposit.DeleteFile(transactor, fileAddress)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	ctx := context.Background()
 	_, err = c.waitTransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		return err
-	}
-
-	storageAccount, err := contract.NewStorageAccount(accountAddr, c)
-	if err != nil {
-		return err
-	}
-
-	_, err = storageAccount.GetFileInfo(nil)
 	return err
 }
-
-// func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx int, blockHash, peerId string) error {
-
-// 	stgAccount, err := contract.NewStorageAccount(job.StorageAccount, c)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	transactor := c.NewKeyedTransactor()
-
-// 	log.Println("CommitBlock blockIdx:", blockIdx, "\t blockHash:", blockHash, "\tpeerId:", peerId)
-// 	_, err = stgAccount.CommitBlockInfo(transactor, job.FileAddress, big.NewInt(int64(blockIdx)), []byte(blockHash), []byte(peerId), []byte("proof"))
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	//ctx := context.Background()
-// 	//_, err = c.waitTransactionReceipt(ctx, tx.Hash())
-// 	//return err
-// 	return nil
-// }
 
 type BlockInfo struct {
 	BlockHash string
@@ -166,6 +131,9 @@ func (c *Client) GetBlocksInfo(fileHash string) (blocksInfo []BlockInfo, err err
 	}
 
 	fInfo, err := stgAccount.GetFileInfo(nil)
+	if err != nil {
+		return
+	}
 	if fInfo.BlockNums.Cmp(fInfo.UploadedBlockNums) != 0 {
 		err = fmt.Errorf("incomplete file, block number: %d, upload block number: %s", fInfo.BlockNums, fInfo.UploadedBlockNums)
 		return

@@ -74,3 +74,26 @@ func (s *Service) FileDownload(ctx iris.Context) {
 
 	return
 }
+
+func (s *Service) FileDelete(ctx iris.Context) {
+	lg := ctx.Application().Logger()
+
+	cid := ctx.Params().Get("cid")
+	if cid == "" {
+		lg.Warn("cid is null")
+		ctx.StatusCode(iris.StatusBadRequest)
+		return
+	}
+	lg.Info("file Delete cid:", cid)
+
+	err := s.Node.Remove(cid)
+	if err != nil {
+		lg.Errorf("file cid: %s delete failed err: %s", cid, err)
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.JSON(iris.Map{"err": err.Error()})
+		return
+	}
+
+	ctx.JSON(iris.Map{"status": "ok"})
+	return
+}
