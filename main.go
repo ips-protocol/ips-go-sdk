@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"io/ioutil"
-
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/rpc"
 )
@@ -22,45 +19,33 @@ func main() {
 		panic(err)
 	}
 
-	//cid, err := cli.Upload("/tmp/5m.txt")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("Upload success cid:", cid)
-
-	rc, meta, err := cli.Download("QmVQfe4DN8oAFRiTy9PLuCNhRxcbR6cYFc2XhJQJfwMc9d")
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-	defer rc.Close()
-	fc, err := ioutil.ReadAll(rc)
+	// upload file ---------------------------------------------------------------------------------------------------
+	cid, err := cli.UploadWithPath("/tmp/abc.txt")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Download file content:", string(fc), "\tmeta data:", meta)
+	fmt.Println("Upload success cid:", cid)
 
-	// upload file ---------------------------------------------------------------------------------------------------
-	//n, err := core.NewNode(ctx, ncfg)
+	// delete file ---------------------------------------------------------------------------------------------------
+	//err = cli.Remove("QmaP7refemdjCt55jWrbNdepkoRfvabkvQKK98iUdt7JKb")
 	//if err != nil {
 	//	panic(err)
+	//} else {
+	//	fmt.Println("delete file success!")
 	//}
+
 	//
-	//cli, err := rpc.NewClient(n)
+	// download file ---------------------------------------------------------------------------------------------------
+	//rc, meta, err := cli.Download("QmVQfe4DN8oAFRiTy9PLuCNhRxcbR6cYFc2XhJQJfwMc9d")
+	//if err != nil && err != io.EOF {
+	//	panic(err)
+	//}
+	//defer rc.Close()
+	//fc, err := ioutil.ReadAll(rc)
 	//if err != nil {
 	//	panic(err)
 	//}
-	//
-	//f, err := os.Open("/tmp/test.txt")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//defer f.Close()
-	//
-	//cid, err := cli.Upload(f)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("-------->", cid)
+	//fmt.Println("Download file content:", string(fc), "\tmeta data:", meta)
 
 	// list nodes ---------------------------------------------------------------------------------------------------
 	//n, err := core.NewNode(ctx, ncfg)

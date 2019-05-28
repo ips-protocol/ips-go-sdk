@@ -96,6 +96,39 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSiz
 	return
 }
 
+func (c *Client) DeleteFile(fileHash string) error {
+	storageDeposit, err := contract.NewStorageDeposit(storageDepositContractAddr, c)
+	if err != nil {
+		return err
+	}
+
+	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
+	accountAddr, err := storageDeposit.GetStorageAccount(nil, fileAddress)
+	if err != nil {
+		return err
+	}
+
+	transactor := c.NewKeyedTransactor()
+	tx, err := storageDeposit.DeleteFile(transactor, fileAddress)
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+	_, err = c.waitTransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		return err
+	}
+
+	storageAccount, err := contract.NewStorageAccount(accountAddr, c)
+	if err != nil {
+		return err
+	}
+
+	_, err = storageAccount.GetFileInfo(nil)
+	return err
+}
+
 // func (c *Client) CommitBlock(job *contract.StorageDepositNewUploadJob, blockIdx int, blockHash, peerId string) error {
 
 // 	stgAccount, err := contract.NewStorageAccount(job.StorageAccount, c)

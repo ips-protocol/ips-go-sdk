@@ -35,6 +35,7 @@ type Client struct {
 	NodesRefreshTime       time.Time
 	NodesRefreshDuration   time.Duration
 	BlockUpWorkerCount     int
+	WalletPubKey           string
 	*storage.Client
 	*core.IpfsNode
 }
@@ -58,6 +59,12 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		cfg.BlockUpWorkerCount = 2
 	}
 	cli.BlockUpWorkerCount = cfg.BlockUpWorkerCount
+
+	pubKey, err := conf.GetWalletPubKey()
+	if err != nil {
+		return
+	}
+	cli.WalletPubKey = pubKey
 
 	c, err := storage.NewClient(cfg.ContractConf)
 	if err != nil {
@@ -83,6 +90,7 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 		return
 	}
 	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
+	meta.WalletPubKey = c.WalletPubKey
 
 	shardsRdr, err := mgr.ECShards(br, fsize)
 	if err != nil {
@@ -170,7 +178,7 @@ func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
 	return
 }
 
-func (c *Client) Remove(fHash string, recursive, force bool) error {
+func (c *Client) Remove(fHash string) error {
 	blocksInfo, err := c.GetBlocksInfo(fHash)
 	if err != nil {
 		return err
@@ -183,14 +191,14 @@ func (c *Client) Remove(fHash string, recursive, force bool) error {
 		}
 
 		for _, n := range ns {
-			err = Rm(n.Client, bi.BlockHash, recursive, force)
+			err = Rm(n.Client, bi.BlockHash, false, true)
 			if err == nil {
 				break
 			}
 		}
 	}
 
-	return nil
+	return c.DeleteFile(fHash)
 }
 
 func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
@@ -369,11 +377,11 @@ func (c *Client) refreshNodePeers() error {
 		if err != nil {
 			c.IpfsUnabailableClients[id] = cli
 			c.P2PClose(0, id)
-			log.Println("bad peer: ", p.Pretty(), err)
+			fmt.Println("bad peer: ", p.Pretty(), err)
 			continue
 		}
 
-		log.Println("p2p peer: ", p.Pretty())
+		fmt.Println("p2p peer: ", p.Pretty())
 		clients[id] = cli
 	}
 

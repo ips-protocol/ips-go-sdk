@@ -3,12 +3,16 @@ package conf
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+const walletKey = "5BEE78415C36E7DC7C7652957157C3E74011E1E8A8A344BD738A17E64DE37988"
 
 type ECConfig struct {
 	DataShards int `json:"data_shards"`
@@ -52,4 +56,21 @@ func LoadConf(cfg interface{}, cfgPath string) error {
 	}
 
 	return json.Unmarshal(b, cfg)
+}
+
+func GetWalletPubKey() (pubKey string, err error) {
+	privateKey, err := crypto.HexToECDSA(walletKey)
+	if err != nil {
+		return "", err
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", errors.New("error casting public key to ECDSA")
+
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	return fmt.Sprintf("%x", fromAddress), nil
 }
