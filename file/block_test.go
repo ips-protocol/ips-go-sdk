@@ -14,7 +14,7 @@ var blockMgr *BlockMgr
 
 func init() {
 	var err error
-	blockMgr, err = NewBlockMgr(4, 2)
+	blockMgr, err = NewBlockMgr(2, 1)
 	if err != nil {
 		panic(err)
 	}
@@ -22,15 +22,15 @@ func init() {
 }
 
 func TestBlockMgr_SplitFile(t *testing.T) {
-	fname := "./test.txt"
+	fname := "/Users/wf/Downloads/1.mp4"
 
 	//test file EC shards
-	shards := blockMgr.DataShards + blockMgr.ParShards
-	rds := make([]io.Reader, shards)
+	//shards := blockMgr.DataShards + blockMgr.ParShards
+	//rds := make([]io.Reader, shards)
 
-	ok, err := blockMgr.Verify(rds)
-	assert.Equal(t, true, ok)
-	assert.Equal(t, nil, err)
+	//ok, err := blockMgr.Verify(rds)
+	//assert.Equal(t, true, ok)
+	//assert.Equal(t, nil, err)
 
 	//test stean EC shards
 	f, err := os.Open(fname)
@@ -40,7 +40,26 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	assert.Equal(t, nil, err)
 
 	rs, err := blockMgr.ECShards(f, fi.Size())
-	ok, err = blockMgr.Verify(rs)
+
+	fh1, err := os.Create("ss1.mp4")
+	if err != nil {
+		panic(err)
+	}
+	_, err = io.Copy(fh1, rs[0])
+	if err != nil {
+		panic(err)
+	}
+
+	fh2, err := os.Create("ss2.mp4")
+	if err != nil {
+		panic(err)
+	}
+	_, err = io.Copy(fh2, rs[2])
+	if err != nil {
+		panic(err)
+	}
+
+	ok, err := blockMgr.Verify(rs)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, nil, err)
 

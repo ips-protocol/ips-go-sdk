@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	shell "github.com/ipfs/go-ipfs-api"
+	"github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/metafile"
 	"github.com/ipweb-group/go-sdk/conf"
@@ -78,7 +78,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 
 func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, err error) {
 	br := &bytes.Buffer{}
-	cidRdr := io.TeeReader(rdr, br)
+	cidRdr := io.MultiReader(bytes.NewReader([]byte(c.WalletPubKey)), io.TeeReader(rdr, br))
 	cid, err = file.GetCID(cidRdr)
 	if err != nil {
 		return
@@ -233,6 +233,7 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.M
 
 		rcs[i] = rc1
 	}
+
 	rc = utils.MultiReadCloser(rcs...)
 	return
 }
