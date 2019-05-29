@@ -40,25 +40,6 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	assert.Equal(t, nil, err)
 
 	rs, err := blockMgr.ECShards(f, fi.Size())
-
-	fh1, err := os.Create("ss1.mp4")
-	if err != nil {
-		panic(err)
-	}
-	_, err = io.Copy(fh1, rs[0])
-	if err != nil {
-		panic(err)
-	}
-
-	fh2, err := os.Create("ss2.mp4")
-	if err != nil {
-		panic(err)
-	}
-	_, err = io.Copy(fh2, rs[2])
-	if err != nil {
-		panic(err)
-	}
-
 	ok, err := blockMgr.Verify(rs)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, nil, err)

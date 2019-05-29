@@ -51,7 +51,9 @@ func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader
 		buf := &bytes.Buffer{}
 		if i < m.DataShards {
 			r := io.LimitReader(data, perShard)
-			rs[i] = io.TeeReader(r, buf)
+			dataBuf := &bytes.Buffer{}
+			io.Copy(buf, io.TeeReader(r, dataBuf))
+			rs[i] = dataBuf
 			shardsRdr[i] = buf
 		} else {
 			parWs[i-m.DataShards] = buf
