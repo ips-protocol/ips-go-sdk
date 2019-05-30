@@ -26,6 +26,7 @@ import (
 )
 
 var ErrNodeNotFound = errors.New("node not found")
+var ErrContractNotFound = errors.New("no contract code at given address")
 
 const P2pProtocl = "/sys/http"
 
@@ -179,26 +180,37 @@ func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
 }
 
 func (c *Client) Remove(fHash string) error {
+	var err error
 	blocksInfo, err := c.GetBlocksInfo(fHash)
 	if err != nil {
 		return err
 	}
 
+	wg := &sync.WaitGroup{}
+	wg.Add(len(blocksInfo))
 	for _, bi := range blocksInfo {
-		ns, err := c.GetNodeClients(bi.PeerId)
-		if err != nil {
-			return err
-		}
-
-		for _, n := range ns {
-			err = Rm(n.Client, bi.BlockHash, false, true)
-			if err == nil {
-				break
+		go func() {
+			defer wg.Done()
+			node, err1 := c.GetNodeClient(bi.PeerId)
+			if err != nil {
+				err = err1
+				return
 			}
-		}
-	}
 
-	return c.DeleteFile(fHash)
+			err2 := node.Client.Unpin(bi.BlockHash)
+			if err2 != nil {
+				err = err2
+			}
+			return
+		}()
+	}
+	wg.Wait()
+
+	err = c.DeleteFile(fHash)
+	if err.Error() == ErrContractNotFound.Error() {
+		err = ErrContractNotFound
+	}
+	return err
 }
 
 func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
@@ -213,25 +225,111 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.M
 	}
 
 	dataShards := int(meta.MetaHeader.DataShards)
-	rcs := make([]io.ReadCloser, dataShards)
-	for i := 0; i < dataShards; i++ {
+	parShards := int(meta.MetaHeader.ParShards)
+	shards := dataShards + parShards
+	rcs := make([]io.ReadCloser, shards)
+	brokenShards := 0
+	for i := 0; i < shards; i++ {
 		blockInfo := blocksInfo[i]
-		ns, err1 := c.GetNodeClients(blockInfo.PeerId)
+		node, err1 := c.GetNodeClient(blockInfo.PeerId)
+		if err1 != nil {
+			err = err1
+			brokenShards++
+			rcs[i] = nil
+			log.Printf("GetNodeClient error: %s, node id: %s, block hash: %s \n", blockInfo.PeerId, blockInfo.BlockHash, err)
+			continue
+		}
+
+		var rc1 io.ReadCloser
+		rc1, err1 = ReadAt(node.Client, blockInfo.BlockHash, int64(meta.Len()), 0)
+		if err1 != nil {
+			err = err1
+			brokenShards++
+		}
+		log.Printf("read block, node id: %s, Block Hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
+
+		rcs[i] = rc1
+		if i == dataShards-1 && brokenShards == 0 {
+			rcs = rcs[:dataShards]
+			break
+		}
+	}
+
+	if brokenShards > parShards {
+		for i := range rcs {
+			if rcs[i] != nil {
+				rcs[i].Close()
+			}
+		}
+	}
+
+	if brokenShards != 0 {
+		log.Printf("shards num: %d broken shards: %d \n", shards, brokenShards)
+		mgr, err1 := file.NewBlockMgr(dataShards, parShards)
 		if err1 != nil {
 			err = err1
 			return
 		}
 
-		var rc1 io.ReadCloser
-		for _, n := range ns {
-			rc1, err1 = ReadAt(n.Client, blockInfo.BlockHash, int64(meta.Len()), 0)
-			if err1 == nil {
-				break
+		wg := &sync.WaitGroup{}
+		wg.Add(shards - brokenShards)
+		wtrs := make([]io.Writer, shards)
+		for i := range rcs {
+			fh, err1 := ioutil.TempFile("", meta.FName+"."+strconv.Itoa(i))
+			if err1 != nil {
+				err = err1
+				return
 			}
-			log.Println("Block Hash:", blockInfo.BlockHash, n.Id, err)
+			if rcs[i] != nil {
+				go func() {
+					defer wg.Done()
+					_, err = io.Copy(fh, rcs[i])
+					if err != nil {
+						return
+					}
+				}()
+			} else {
+				wtrs[i] = fh
+			}
+		}
+		wg.Wait()
+		rds := make([]io.Reader, shards)
+		for i := range rcs {
+			if rcs[i] != nil {
+				rcs[i].Close()
+
+				fh, err1 := os.Open(meta.FName + "." + strconv.Itoa(i))
+				if err1 != nil {
+					err = err1
+					return
+				}
+				rds[i] = fh
+			} else {
+				rds[i] = nil
+			}
+		}
+		err = mgr.Reconstruct(rds, wtrs)
+		if err != nil {
+			return
 		}
 
-		rcs[i] = rc1
+		for i := range rcs {
+			if rcs[i] == nil {
+				fh := wtrs[i].(*os.File)
+				fh.Seek(0, 0)
+				rcs[i] = fh
+			} else {
+				fh := rds[i].(*os.File)
+				fh.Seek(0, 0)
+				rcs[i] = fh
+			}
+
+			if i >= dataShards {
+				rcs[i].Close()
+			}
+		}
+
+		rcs = rcs[:dataShards]
 	}
 
 	rc = utils.MultiReadCloser(rcs...)
@@ -317,6 +415,21 @@ func (c *Client) GetClientByPeerId(pId string) (node *shell.Shell, exist bool) {
 type NodeClient struct {
 	Id     string
 	Client *shell.Shell
+}
+
+func (c *Client) GetNodeClient(nid string) (cli NodeClient, err error) {
+	ns, err := c.GetNodeClients(nid)
+	if err != nil {
+		return
+	}
+
+	if len(ns) == 0 || ns[0].Id != nid {
+		err = ErrNodeNotFound
+	}
+
+	cli = ns[0]
+
+	return
 }
 
 func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClient, err error) {

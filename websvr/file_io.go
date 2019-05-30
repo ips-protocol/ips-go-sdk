@@ -89,7 +89,11 @@ func (s *Service) FileDelete(ctx iris.Context) {
 	err := s.Node.Remove(cid)
 	if err != nil {
 		lg.Errorf("file cid: %s delete failed err: %s", cid, err)
-		ctx.StatusCode(iris.StatusInternalServerError)
+		if err.Error() == rpc.ErrContractNotFound.Error() {
+			ctx.StatusCode(iris.StatusNotFound)
+		} else {
+			ctx.StatusCode(iris.StatusInternalServerError)
+		}
 		ctx.JSON(iris.Map{"err": err.Error()})
 		return
 	}
