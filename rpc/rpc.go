@@ -180,34 +180,25 @@ func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
 }
 
 func (c *Client) Remove(fHash string) error {
-	var err error
 	blocksInfo, err := c.GetBlocksInfo(fHash)
 	if err != nil {
 		return err
 	}
 
-	wg := &sync.WaitGroup{}
-	wg.Add(len(blocksInfo))
 	for _, bi := range blocksInfo {
-		go func() {
-			defer wg.Done()
-			node, err1 := c.GetNodeClient(bi.PeerId)
-			if err != nil {
-				err = err1
-				return
-			}
+		node, err := c.GetNodeClient(bi.PeerId)
+		if err != nil {
+			return err
+		}
 
-			err2 := node.Client.Unpin(bi.BlockHash)
-			if err2 != nil {
-				err = err2
-			}
-			return
-		}()
+		err = node.Client.Unpin(bi.BlockHash)
+		if err != nil {
+			return err
+		}
 	}
-	wg.Wait()
 
 	err = c.DeleteFile(fHash)
-	if err.Error() == ErrContractNotFound.Error() {
+	if err != nil && err.Error() == ErrContractNotFound.Error() {
 		err = ErrContractNotFound
 	}
 	return err
