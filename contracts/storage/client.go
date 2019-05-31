@@ -162,7 +162,7 @@ func (c *Client) waitTransactionReceipt(ctx context.Context, tx common.Hash) (re
 			continue
 		}
 
-		if receipt.Status != 0 {
+		if receipt.Status != 1 {
 			err = fmt.Errorf("tx %s status is failed", tx.String())
 		}
 		return
