@@ -222,9 +222,9 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.M
 	brokenShards := 0
 	for i := 0; i < shards; i++ {
 		blockInfo := blocksInfo[i]
-		node, err1 := c.GetNodeClient(blockInfo.PeerId)
-		if err1 != nil {
-			err = err1
+		node, e := c.GetNodeClient(blockInfo.PeerId)
+		if e != nil {
+			err = e
 			brokenShards++
 			rcs[i] = nil
 			log.Printf("GetNodeClient error: %s, node id: %s, block hash: %s \n", blockInfo.PeerId, blockInfo.BlockHash, err)
@@ -232,25 +232,18 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.M
 		}
 
 		var rc1 io.ReadCloser
-		rc1, err1 = ReadAt(node.Client, blockInfo.BlockHash, int64(meta.Len()), 0)
-		if err1 != nil {
-			err = err1
+		rc1, err = ReadAt(node.Client, blockInfo.BlockHash, int64(meta.Len()), 0)
+		if err != nil {
+			rcs[i] = nil
 			brokenShards++
+		} else {
+			rcs[i] = rc1
 		}
 		log.Printf("read block, node id: %s, Block Hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
 
-		rcs[i] = rc1
 		if i == dataShards-1 && brokenShards == 0 {
 			rcs = rcs[:dataShards]
 			break
-		}
-	}
-
-	if brokenShards > parShards {
-		for i := range rcs {
-			if rcs[i] != nil {
-				rcs[i].Close()
-			}
 		}
 	}
 
