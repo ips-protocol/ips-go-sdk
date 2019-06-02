@@ -3,6 +3,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -52,9 +53,9 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.IpfsClients = make(map[string]*shell.Shell)
 	cli.IpfsUnabailableClients = make(map[string]*shell.Shell)
 	if cfg.NodesRefreshIntervalInSecond == 0 {
-		cfg.NodesRefreshIntervalInSecond = 300
+		cfg.NodesRefreshIntervalInSecond = 5
 	}
-	cli.NodesRefreshDuration = time.Minute * time.Duration(cfg.NodesRefreshIntervalInSecond)
+	cli.NodesRefreshDuration = time.Second * time.Duration(cfg.NodesRefreshIntervalInSecond)
 
 	if cfg.BlockUpWorkerCount == 0 {
 		cfg.BlockUpWorkerCount = 2
@@ -78,36 +79,76 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 }
 
 func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, err error) {
-	br := &bytes.Buffer{}
-	cidRdr := io.MultiReader(bytes.NewReader([]byte(c.WalletPubKey)), io.TeeReader(rdr, br))
-	cid, err = file.GetCID(cidRdr)
-	if err != nil {
-		return
-	}
-
 	dataShards, parShards, shardSize := file.BlockCount(fsize)
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
 		return
 	}
+
+	h := sha256.New()
+	_, err = h.Write([]byte(c.WalletPubKey))
+	if err != nil {
+		return
+	}
+	r := io.TeeReader(rdr, h)
+
+	//dataFhs := make([]*os.File, dataShards)
+	dataFhs, err := mgr.Split(r, fsize)
+	if err != nil {
+		return
+	}
+	cid, err = file.GetCidV0(h)
+	if err != nil {
+		return
+	}
+
+	parFhs, err := file.CreateTmpFiles(parShards)
+	if err != nil {
+		return
+	}
+
+	fmt.Println("===> shards:", dataShards, "parshards:", parShards, "shardsize:", shardSize)
+	dataFhRdrs := make([]io.Reader, dataShards)
+	for i := range dataFhRdrs {
+		dataFhRdrs[i] = dataFhs[i]
+	}
+	parFhWtrs := make([]io.Writer, parShards)
+	for i := range parFhWtrs {
+		parFhWtrs[i] = parFhs[i]
+	}
+	err = mgr.Encode(dataFhRdrs, parFhWtrs)
+	if err != nil {
+		return
+	}
+
 	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 	meta.WalletPubKey = c.WalletPubKey
 
-	shardsRdr, err := mgr.ECShards(br, fsize)
-	if err != nil {
-		return
-	}
-
-	nodes, err := c.GetNodeClients("")
-	if err != nil {
-		return
-	}
-
-	shards := dataShards + parShards
 	shardSize += int64(len(meta.Encode(0)))
+	shards := dataShards + parShards
 	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
 	if err != nil {
 		return
+	}
+
+	fhs := append(dataFhs, parFhs...)
+	for i := range fhs {
+		fhs[i].Seek(0, 0)
+	}
+	err = c.upload(fhs, meta)
+	if err != nil {
+		return
+	}
+
+	err = file.DeleteTempFiles(fhs)
+	return
+}
+
+func (c *Client) upload(fhs []*os.File, meta metafile.Meta) error {
+	shards := len(fhs)
+	nodes, err := c.GetNodeClients("")
+	if err != nil {
+		return err
 	}
 
 	shardIdCh := make(chan int, shards)
@@ -117,7 +158,7 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	close(shardIdCh)
 	errCh := make(chan error, shards)
 	wg := sync.WaitGroup{}
-	wg.Add(c.BlockUpWorkerCount)
+	wg.Add(shards)
 	worker := func() {
 		defer wg.Done()
 		for id := range shardIdCh {
@@ -126,15 +167,13 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 			nodeIdx := (id + retry) % len(nodes)
 			node := nodes[nodeIdx]
 
-			blkBuf := bytes.Buffer{}
-			blkRdr := io.TeeReader(shardsRdr[id], &blkBuf)
 			mr := bytes.NewBuffer(meta.Encode(id))
 			var r io.Reader
 			if retry == 0 {
-				r = io.MultiReader(mr, blkRdr)
+				r = io.MultiReader(mr, fhs[id])
 			} else {
-				bufRdr := bytes.NewReader(blkBuf.Bytes())
-				r = io.MultiReader(mr, bufRdr)
+				fhs[id].Seek(0, 0)
+				r = io.MultiReader(mr, fhs[id])
 			}
 
 			blkHash, err := node.Client.Add(r)
@@ -146,20 +185,18 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 				}
 				errCh <- err
 			}
-			log.Println("Block Hash:", blkHash, node.Id, err)
+			log.Printf("block hash: %s, node id: %s, err: %#v", blkHash, node.Id, err)
 		}
 	}
-	for i := 0; i < c.BlockUpWorkerCount; i++ {
+	for i := 0; i < shards; i++ {
 		go worker()
 	}
 	wg.Wait()
 	close(errCh)
 	for err1 := range errCh {
-		cid = ""
-		err = err1
+		return err1
 	}
-
-	return
+	return nil
 }
 
 func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
@@ -447,7 +484,7 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 
 func (c *Client) needRefresh() bool {
 	timeOut := c.NodesRefreshTime.Add(c.NodesRefreshDuration).Before(time.Now())
-
+	fmt.Println("====> need refresh", timeOut)
 	if timeOut || len(c.IpfsClients) == 0 {
 		return true
 	}
@@ -455,6 +492,7 @@ func (c *Client) needRefresh() bool {
 }
 
 func (c *Client) refreshNodePeers() error {
+	fmt.Println("----> refreshing node")
 	c.NodesRefreshTime = time.Now()
 	clients := make(map[string]*shell.Shell)
 	ps := c.IpfsNode.Peerstore.Peers()

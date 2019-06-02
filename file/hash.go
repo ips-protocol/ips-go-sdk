@@ -2,6 +2,7 @@ package file
 
 import (
 	"crypto/sha256"
+	"hash"
 	"io"
 
 	"gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
@@ -15,6 +16,17 @@ func GetCID(r io.Reader) (id string, err error) {
 	}
 
 	ehs, err := multihash.Encode(hs, 0x12)
+	if err != nil {
+		return
+	}
+
+	id = cid.NewCidV0(ehs).String()
+	return
+}
+
+func GetCidV0(h hash.Hash) (id string, err error) {
+	s := h.Sum(nil)
+	ehs, err := multihash.Encode(s[0:32], 0x12)
 	if err != nil {
 		return
 	}

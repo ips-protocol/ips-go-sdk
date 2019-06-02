@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/klauspost/reedsolomon"
 )
@@ -34,6 +38,69 @@ func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *Block
 		DataShards:    dataShards,
 		ParShards:     parShards,
 		StreamEncoder: e,
+	}
+	return
+}
+
+func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []*os.File, err error) {
+	if size == 0 {
+		return fhs, ErrShortData
+	}
+
+	fhs, err = CreateTmpFiles(m.DataShards)
+	if err != nil {
+		return fhs, err
+	}
+
+	ws := make([]io.Writer, m.DataShards)
+	for i := range ws {
+		ws[i] = fhs[i]
+	}
+
+	shards := m.DataShards + m.ParShards
+	perShard := (size + int64(m.DataShards) - 1) / int64(m.DataShards)
+
+	padding := make([]byte, (int64(shards)*perShard)-size)
+	data = io.MultiReader(data, bytes.NewBuffer(padding))
+
+	for i := range fhs {
+		n, err := io.CopyN(fhs[i], data, perShard)
+		if err != io.EOF && err != nil {
+			return fhs, err
+		}
+		if n != perShard {
+			return fhs, ErrShortData
+		}
+
+		_, err = fhs[i].Seek(0, 0)
+		if err != nil {
+			return fhs, err
+		}
+	}
+
+	return
+}
+
+func DeleteTempFiles(fhs []*os.File) error {
+	for i := range fhs {
+		fpath := filepath.Join(os.TempDir(), fhs[i].Name())
+		err := os.Remove(fpath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CreateTmpFiles(count int) (fhs []*os.File, err error) {
+	tmpFname := filepath.Join(os.TempDir(), strconv.FormatInt(time.Now().UnixNano(), 10))
+	fhs = make([]*os.File, count)
+	for i := range fhs {
+		fname := tmpFname + "." + strconv.Itoa(i)
+		fhs[i], err = os.Create(fname)
+		if err != nil {
+			return
+		}
 	}
 	return
 }
