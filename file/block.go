@@ -83,6 +83,9 @@ func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []*os.File, err error)
 
 func DeleteTempFiles(fhs []*os.File) error {
 	for i := range fhs {
+		if fhs[i] == nil {
+			continue
+		}
 		err := fhs[i].Close()
 		if err != nil {
 			return err
@@ -107,6 +110,25 @@ func CreateTmpFiles(count int) (fhs []*os.File, err error) {
 		}
 	}
 	return
+}
+
+func CreteTmpFile() (fh *os.File, err error) {
+	tmpFname := filepath.Join(os.TempDir(), strconv.FormatInt(time.Now().UnixNano(), 10))
+	fh, err = os.Create(tmpFname)
+	return
+}
+
+func SeekToStart(fhs []*os.File) error {
+	for i := range fhs {
+		if fhs[i] == nil {
+			continue
+		}
+		_, err := fhs[i].Seek(0, 0)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader, err error) {

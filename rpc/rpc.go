@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"path"
 	"strconv"
@@ -240,6 +241,144 @@ func (c *Client) Remove(fHash string) error {
 		err = ErrContractNotFound
 	}
 	return err
+}
+
+func (c *Client) Download2(fileHash string, w io.Writer) (metaAll metafile.Meta, err error) {
+	blocksInfo, err := c.GetBlocksInfo(fileHash)
+	if err != nil {
+		return
+	}
+
+	meta, err := c.GetMeta(blocksInfo)
+	if err != nil {
+		return
+	}
+
+	dataShards := int(meta.MetaHeader.DataShards)
+	parShards := int(meta.MetaHeader.ParShards)
+	shards := dataShards + parShards
+	dataFhs, hasBroken, err := c.download(blocksInfo[:dataShards], len(meta.Encode(0)))
+	if err != nil {
+		return
+	}
+	if hasBroken {
+		parFhs, _, e := c.download(blocksInfo[dataShards:], len(meta.Encode(0)))
+		if e != nil {
+			err = e
+			return
+		}
+		mgr, e := file.NewBlockMgr(dataShards, parShards)
+		if err != nil {
+			err = e
+			return
+		}
+
+		fhs := append(dataFhs, parFhs...)
+		rdrs := make([]io.Reader, shards)
+		wtrs := make([]io.Writer, shards)
+		for i := range fhs {
+			rdrs[i] = fhs[i]
+			wtrs[i] = fhs[i]
+			if fhs[i] == nil {
+				wtrs[i], err = file.CreteTmpFile()
+				if err != nil {
+					return
+				}
+			}
+		}
+
+		err = mgr.Reconstruct(rdrs, wtrs)
+		if err != nil {
+			return
+		}
+
+		file.SeekToStart(fhs)
+		for i := range fhs {
+			if fhs[i] == nil {
+				fh := wtrs[i].(*os.File)
+				fh.Seek(0, 0)
+				fhs[i] = fh
+			}
+		}
+		dataFhs = fhs[:dataShards]
+	}
+
+	drs := make([]io.Reader, dataShards)
+	for i := range dataFhs {
+		drs[i] = dataFhs[i]
+	}
+	fr := io.LimitReader(io.MultiReader(drs...), meta.FSize)
+	_, err = io.Copy(w, fr)
+	return
+}
+
+func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*os.File, hasBroken bool, err error) {
+	blockNum := len(blocksInfo)
+	fhs, err = file.CreateTmpFiles(blockNum)
+	if err != nil {
+		return
+	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(blockNum)
+	for i := 0; i < blockNum; i++ {
+		blockInfo := blocksInfo[i]
+		nodes, e := c.GetNodeClients(blockInfo.PeerId)
+		if e != nil {
+			err = e
+			return
+		}
+
+		go func(ns []NodeClient, idx int) (err error) {
+			defer func() {
+				wg.Done()
+				if err != nil {
+					fhs[i].Close()
+					os.Remove(fhs[i].Name())
+					fhs[i] = nil
+					hasBroken = true
+				} else {
+					fhs[i].Seek(0, 0)
+				}
+			}()
+
+			dialRetryTimes := 0
+			downloadRetryTimes := 0
+			node := ns[0]
+		lazyTry:
+			rc1, err := ReadAt(node.Client, blockInfo.BlockHash, int64(metaLen), 0)
+			log.Printf("dial to node id: %s, block hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
+			if err != nil {
+				if dialRetryTimes < 2 {
+					node = getRandonNode(ns)
+					log.Println("retrying, diaRetryTimes:", dialRetryTimes)
+					dialRetryTimes++
+					goto lazyTry
+				}
+				return
+			}
+
+			_, err = io.Copy(fhs[i], rc1)
+			log.Printf("download block, node id: %s, block hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
+			if err != nil {
+				if downloadRetryTimes < 3 {
+					log.Println("retrying, downloadRetryTimes:", downloadRetryTimes)
+					downloadRetryTimes++
+					fhs[i].Seek(0, 0)
+					goto lazyTry
+				}
+			}
+			return
+		}(nodes, i)
+	}
+	wg.Wait()
+	return
+}
+
+func getRandonNode(nodes []NodeClient) NodeClient {
+	rand.Seed(time.Now().UnixNano())
+	i := rand.Intn(len(nodes))
+	return nodes[i]
 }
 
 func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
