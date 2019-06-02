@@ -120,10 +120,16 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	if err != nil {
 		return
 	}
+	fhs := append(dataFhs, parFhs...)
+	defer func() {
+		err := file.DeleteTempFiles(fhs)
+		if err != nil {
+			log.Println("delete files failed:", err)
+		}
+	}()
 
 	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 	meta.WalletPubKey = c.WalletPubKey
-
 	shardSize += int64(len(meta.Encode(0)))
 	shards := dataShards + parShards
 	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
@@ -131,16 +137,11 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 		return
 	}
 
-	fhs := append(dataFhs, parFhs...)
 	for i := range fhs {
 		fhs[i].Seek(0, 0)
 	}
 	err = c.upload(fhs, meta)
-	if err != nil {
-		return
-	}
 
-	err = file.DeleteTempFiles(fhs)
 	return
 }
 

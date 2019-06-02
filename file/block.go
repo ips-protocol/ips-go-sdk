@@ -83,8 +83,12 @@ func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []*os.File, err error)
 
 func DeleteTempFiles(fhs []*os.File) error {
 	for i := range fhs {
-		fpath := filepath.Join(os.TempDir(), fhs[i].Name())
-		err := os.Remove(fpath)
+		err := fhs[i].Close()
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(fhs[i].Name())
 		if err != nil {
 			return err
 		}
