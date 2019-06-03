@@ -268,11 +268,13 @@ func (c *Client) Download2(fileHash string, w io.Writer) (metaAll metafile.Meta,
 		return
 	}
 	if hasBroken {
+		log.Println("have broken shards, start download parity shards.")
 		parFhs, _, e := c.download(blocksInfo[dataShards:], len(meta.Encode(0)))
 		if e != nil {
 			err = e
 			return
 		}
+		log.Println("parity shards download success.")
 		mgr, e := file.NewBlockMgr(dataShards, parShards)
 		if err != nil {
 			err = e
@@ -293,10 +295,12 @@ func (c *Client) Download2(fileHash string, w io.Writer) (metaAll metafile.Meta,
 			}
 		}
 
+		log.Println("reconstruct start.")
 		err = mgr.Reconstruct(rdrs, wtrs)
 		if err != nil {
 			return
 		}
+		log.Println("reconstruct end.")
 
 		file.SeekToStart(fhs)
 		for i := range fhs {
@@ -309,6 +313,7 @@ func (c *Client) Download2(fileHash string, w io.Writer) (metaAll metafile.Meta,
 		dataFhs = fhs[:dataShards]
 	}
 
+	log.Println("download over.")
 	drs := make([]io.Reader, dataShards)
 	for i := range dataFhs {
 		drs[i] = dataFhs[i]
@@ -353,7 +358,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			node := ns[0]
 		lazyTry:
 			rc1, err := ReadAt(node.Client, blockInfo.BlockHash, int64(metaLen), 0)
-			log.Printf("dial to node id: %s, block hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
+			log.Printf("dial to node id: %s, block hash: %s, error: %#v \n", node.Id, blockInfo.BlockHash, err)
 			if err != nil {
 				if dialRetryTimes < 2 {
 					node = getRandonNode(ns)
@@ -365,7 +370,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			}
 
 			_, err = io.Copy(fhs[idx], rc1)
-			log.Printf("download block, node id: %s, block hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
+			log.Printf("download block done, node id: %s, block hash: %s, error: %#v \n", node.Id, blockInfo.BlockHash, err)
 			if err != nil {
 				if downloadRetryTimes < 3 {
 					log.Println("retrying, downloadRetryTimes:", downloadRetryTimes)
