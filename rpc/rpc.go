@@ -33,12 +33,13 @@ var ErrContractNotFound = errors.New("no contract code at given address")
 const P2pProtocl = "/sys/http"
 
 type Client struct {
-	IpfsClients            map[string]*shell.Shell
-	IpfsUnabailableClients map[string]*shell.Shell
-	NodesRefreshTime       time.Time
-	NodesRefreshDuration   time.Duration
-	BlockUpWorkerCount     int
-	WalletPubKey           string
+	IpfsClients              map[string]*shell.Shell
+	IpfsUnabailableClients   map[string]*shell.Shell
+	NodesRefreshTime         time.Time
+	NodesRefreshDuration     time.Duration
+	BlockUpWorkerCount       int
+	BlockDownloadWorkerCount int
+	WalletPubKey             string
 	*storage.Client
 	*core.IpfsNode
 }
@@ -62,6 +63,11 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		cfg.BlockUpWorkerCount = 5
 	}
 	cli.BlockUpWorkerCount = cfg.BlockUpWorkerCount
+
+	if cfg.BlockDownloadWorkerCount == 0 {
+		cfg.BlockDownloadWorkerCount = 5
+	}
+	cli.BlockDownloadWorkerCount = cfg.BlockDownloadWorkerCount
 
 	pubKey, err := conf.GetWalletPubKey()
 	if err != nil {
@@ -319,8 +325,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 		return
 	}
 
-	wg := &sync.WaitGroup{}
-	wg.Add(blockNum)
+	sem := make(chan bool, c.BlockDownloadWorkerCount)
 	for i := 0; i < blockNum; i++ {
 		blockInfo := blocksInfo[i]
 		nodes, e := c.GetNodeClients(blockInfo.PeerId)
@@ -329,9 +334,10 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			return
 		}
 
+		sem <- true
 		go func(ns []NodeClient, idx int) (err error) {
 			defer func() {
-				wg.Done()
+				<-sem
 				if err != nil {
 					fhs[idx].Close()
 					os.Remove(fhs[idx].Name())
@@ -371,7 +377,10 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			return
 		}(nodes, i)
 	}
-	wg.Wait()
+	//wait
+	for i := 0; i < c.BlockDownloadWorkerCount; i++ {
+		sem <- true
+	}
 	return
 }
 

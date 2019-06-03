@@ -40,6 +40,7 @@ func (cfg ContractConfig) GetClientAddress() common.Address {
 type Config struct {
 	NodesRefreshIntervalInSecond int            `json:"nodes_refresh_interval_in_second"`
 	BlockUpWorkerCount           int            `json:"block_up_worker_count"`
+	BlockDownloadWorkerCount     int            `json:"block_download_worker_count"`
 	ContractConf                 ContractConfig `json:"contract_conf"`
 	ECConfig
 }
