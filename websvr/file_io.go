@@ -44,7 +44,7 @@ func (s *Service) FileUpload(ctx iris.Context) {
 	return
 }
 
-func (s *Service) FileDownload(ctx iris.Context) {
+func (s *Service) FileRead(ctx iris.Context) {
 	lg := ctx.Application().Logger()
 
 	cid := ctx.Params().Get("cid")
@@ -67,6 +67,28 @@ func (s *Service) FileDownload(ctx iris.Context) {
 	_, err = io.Copy(ctx, rd)
 	if err != nil {
 		lg.Error("file copy failed:", err)
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.JSON(iris.Map{"err": err.Error()})
+		return
+	}
+
+	return
+}
+
+func (s *Service) FileDownload(ctx iris.Context) {
+	lg := ctx.Application().Logger()
+
+	cid := ctx.Params().Get("cid")
+	if cid == "" {
+		lg.Warn("cid is null")
+		ctx.StatusCode(iris.StatusBadRequest)
+		return
+	}
+	lg.Info("file download cid:", cid)
+
+	_, err := s.Node.Download2(cid, ctx)
+	if err != nil {
+		lg.Errorf("file cid: %s download failed err: %s", cid, err)
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.JSON(iris.Map{"err": err.Error()})
 		return

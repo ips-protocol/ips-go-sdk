@@ -333,12 +333,12 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			defer func() {
 				wg.Done()
 				if err != nil {
-					fhs[i].Close()
-					os.Remove(fhs[i].Name())
-					fhs[i] = nil
+					fhs[idx].Close()
+					os.Remove(fhs[idx].Name())
+					fhs[idx] = nil
 					hasBroken = true
 				} else {
-					fhs[i].Seek(0, 0)
+					fhs[idx].Seek(0, 0)
 				}
 			}()
 
@@ -358,13 +358,13 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 				return
 			}
 
-			_, err = io.Copy(fhs[i], rc1)
+			_, err = io.Copy(fhs[idx], rc1)
 			log.Printf("download block, node id: %s, block hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
 			if err != nil {
 				if downloadRetryTimes < 3 {
 					log.Println("retrying, downloadRetryTimes:", downloadRetryTimes)
 					downloadRetryTimes++
-					fhs[i].Seek(0, 0)
+					fhs[idx].Seek(0, 0)
 					goto lazyTry
 				}
 			}
