@@ -54,12 +54,12 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.IpfsClients = make(map[string]*shell.Shell)
 	cli.IpfsUnabailableClients = make(map[string]*shell.Shell)
 	if cfg.NodesRefreshIntervalInSecond == 0 {
-		cfg.NodesRefreshIntervalInSecond = 5
+		cfg.NodesRefreshIntervalInSecond = 600
 	}
 	cli.NodesRefreshDuration = time.Second * time.Duration(cfg.NodesRefreshIntervalInSecond)
 
 	if cfg.BlockUpWorkerCount == 0 {
-		cfg.BlockUpWorkerCount = 2
+		cfg.BlockUpWorkerCount = 5
 	}
 	cli.BlockUpWorkerCount = cfg.BlockUpWorkerCount
 
@@ -160,7 +160,7 @@ func (c *Client) upload(fhs []*os.File, meta metafile.Meta) error {
 	close(shardIdCh)
 	errCh := make(chan error, shards)
 	wg := sync.WaitGroup{}
-	wg.Add(shards)
+	wg.Add(c.BlockUpWorkerCount)
 	worker := func() {
 		defer wg.Done()
 		for id := range shardIdCh {
@@ -190,7 +190,7 @@ func (c *Client) upload(fhs []*os.File, meta metafile.Meta) error {
 			log.Printf("block hash: %s, node id: %s, err: %#v", blkHash, node.Id, err)
 		}
 	}
-	for i := 0; i < shards; i++ {
+	for i := 0; i < c.BlockUpWorkerCount; i++ {
 		go worker()
 	}
 	wg.Wait()
