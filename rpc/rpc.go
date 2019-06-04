@@ -337,14 +337,16 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 		go func(idx int) (err error) {
 			log.Println("block download start idx:", idx)
 			defer func() {
-				log.Println("block download over idx:", idx)
 				<-sem
 				if err != nil {
+					log.Printf("block download failed idx: %d, error: %#v\n", idx, err)
 					fhs[idx].Close()
 					os.Remove(fhs[idx].Name())
 					fhs[idx] = nil
 					hasBroken = true
 				} else {
+					log.Println("block download success idx:", idx)
+					fhs[idx].Close()
 					fhs[idx].Seek(0, 0)
 				}
 			}()
