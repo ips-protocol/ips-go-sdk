@@ -335,7 +335,9 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 	for i := 0; i < blockNum; i++ {
 		sem <- true
 		go func(idx int) (err error) {
+			log.Println("block download start idx:", idx)
 			defer func() {
+				log.Println("block download over idx:", idx)
 				<-sem
 				if err != nil {
 					fhs[idx].Close()
