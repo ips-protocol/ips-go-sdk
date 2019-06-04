@@ -285,13 +285,14 @@ func (c *Client) Download2(fileHash string, w io.Writer) (metaAll metafile.Meta,
 		rdrs := make([]io.Reader, shards)
 		wtrs := make([]io.Writer, shards)
 		for i := range fhs {
-			rdrs[i] = fhs[i]
-			wtrs[i] = fhs[i]
 			if fhs[i] == nil {
+				rdrs[i] = nil
 				wtrs[i], err = file.CreteTmpFile()
 				if err != nil {
 					return
 				}
+			} else {
+				rdrs[i] = fhs[i]
 			}
 		}
 

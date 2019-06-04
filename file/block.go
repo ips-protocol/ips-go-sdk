@@ -14,7 +14,7 @@ import (
 
 var ErrShortData = errors.New("short data")
 
-const DefaultBlockSize = 1 << 26 //64MB default
+const DefaultBlockSize = 1 << 25 //64MB default
 const MaxBlockCount = 170
 
 type BlockMgr struct {
