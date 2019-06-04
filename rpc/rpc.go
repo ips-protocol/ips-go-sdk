@@ -332,15 +332,8 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 
 	sem := make(chan bool, c.BlockDownloadWorkerCount)
 	for i := 0; i < blockNum; i++ {
-		blockInfo := blocksInfo[i]
-		nodes, e := c.GetNodeClients(blockInfo.PeerId)
-		if e != nil {
-			err = e
-			return
-		}
-
 		sem <- true
-		go func(ns []NodeClient, idx int) (err error) {
+		go func(idx int) (err error) {
 			defer func() {
 				<-sem
 				if err != nil {
@@ -352,6 +345,12 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 					fhs[idx].Seek(0, 0)
 				}
 			}()
+
+			blockInfo := blocksInfo[idx]
+			ns, err := c.GetNodeClients(blockInfo.PeerId)
+			if err != nil {
+				return
+			}
 
 			dialRetryTimes := 0
 			downloadRetryTimes := 0
@@ -366,6 +365,8 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 					dialRetryTimes++
 					goto lazyTry
 				}
+
+				log.Println("retry failed, return. diaRetryTimes:", dialRetryTimes)
 				return
 			}
 
@@ -380,7 +381,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 				}
 			}
 			return
-		}(nodes, i)
+		}(i)
 	}
 	//wait
 	for i := 0; i < c.BlockDownloadWorkerCount; i++ {
