@@ -346,7 +346,6 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 					hasBroken = true
 				} else {
 					log.Println("block download success idx:", idx)
-					fhs[idx].Close()
 					fhs[idx].Seek(0, 0)
 				}
 			}()
