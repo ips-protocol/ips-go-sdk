@@ -335,7 +335,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 	for i := 0; i < blockNum; i++ {
 		sem <- true
 		go func(idx int) (err error) {
-			log.Println("block download start idx:", idx)
+			log.Println("block idx:", idx)
 			defer func() {
 				<-sem
 				if err != nil {
@@ -345,7 +345,6 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 					fhs[idx] = nil
 					hasBroken = true
 				} else {
-					log.Println("block download success idx:", idx)
 					fhs[idx].Seek(0, 0)
 				}
 			}()
@@ -361,24 +360,25 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			node := ns[0]
 		lazyTry:
 			rc1, err := ReadAt(node.Client, blockInfo.BlockHash, int64(metaLen), 0)
-			log.Printf("dial to node id: %s, block hash: %s, error: %#v \n", node.Id, blockInfo.BlockHash, err)
+			log.Printf("dial to node, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
 			if err != nil {
 				if dialRetryTimes < 2 {
 					node = getRandonNode(ns)
-					log.Println("retrying, diaRetryTimes:", dialRetryTimes)
+					log.Printf("retrying, idx: %d, block hash: %s, new node id: %s, diaRetryTimes: %d\n", idx, blockInfo.BlockHash, node.Id, dialRetryTimes)
 					dialRetryTimes++
 					goto lazyTry
 				}
 
-				log.Println("retry failed, return. diaRetryTimes:", dialRetryTimes)
+				log.Printf("retry failed, return, idx: %d, diaRetryTimes: %d \n", idx, dialRetryTimes)
 				return
 			}
 
+			log.Printf("block download start, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
 			_, err = io.Copy(fhs[idx], rc1)
-			log.Printf("download block done, node id: %s, block hash: %s, error: %#v \n", node.Id, blockInfo.BlockHash, err)
+			log.Printf("block download finished, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
 			if err != nil {
 				if downloadRetryTimes < 3 {
-					log.Println("retrying, downloadRetryTimes:", downloadRetryTimes)
+					log.Printf("retrying, idx: %d, downloadRetryTimes: %d \n", idx, downloadRetryTimes)
 					downloadRetryTimes++
 					fhs[idx].Seek(0, 0)
 					goto lazyTry
