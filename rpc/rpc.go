@@ -37,6 +37,7 @@ type Client struct {
 	IpfsUnabailableClients   map[string]*shell.Shell
 	NodesRefreshTime         time.Time
 	NodesRefreshDuration     time.Duration
+	NodeRequestTimeout       time.Duration
 	BlockUpWorkerCount       int
 	BlockDownloadWorkerCount int
 	WalletPubKey             string
@@ -58,6 +59,11 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		cfg.NodesRefreshIntervalInSecond = 600
 	}
 	cli.NodesRefreshDuration = time.Second * time.Duration(cfg.NodesRefreshIntervalInSecond)
+
+	if cfg.NodeRequestTimeoutInSecond == 0 {
+		cfg.NodeRequestTimeoutInSecond = 60
+	}
+	cli.NodesRefreshDuration = time.Second * time.Duration(cfg.NodeRequestTimeoutInSecond)
 
 	if cfg.BlockUpWorkerCount == 0 {
 		cfg.BlockUpWorkerCount = 5
@@ -359,8 +365,9 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			downloadRetryTimes := 0
 			node := ns[0]
 		lazyTry:
+			log.Printf("dial to node start, idx: %d, node id: %s, block hash: %s\n", idx, node.Id, blockInfo.BlockHash)
 			rc1, err := ReadAt(node.Client, blockInfo.BlockHash, int64(metaLen), 0)
-			log.Printf("dial to node, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
+			log.Printf("dial to node finished, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
 			if err != nil {
 				if dialRetryTimes < 2 {
 					node = getRandonNode(ns)
@@ -714,6 +721,7 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 	url := fmt.Sprintf("127.0.0.1:%d", port)
 
 	cli = shell.NewShell(url)
+	cli.SetTimeout(c.NodeRequestTimeout)
 	_, err = cli.ID()
 	if err != nil {
 		c.P2PClose(0, peerId)
