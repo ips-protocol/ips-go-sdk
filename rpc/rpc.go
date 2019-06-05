@@ -356,27 +356,30 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			}()
 
 			blockInfo := blocksInfo[idx]
-			ns, err := c.GetNodeClients(blockInfo.PeerId)
+			node, err := c.GetNodeClient(blockInfo.PeerId)
 			if err != nil {
 				return
 			}
 
 			dialRetryTimes := 0
 			downloadRetryTimes := 0
-			node := ns[0]
 		lazyTry:
 			log.Printf("dial to node start, idx: %d, node id: %s, block hash: %s\n", idx, node.Id, blockInfo.BlockHash)
 			rc1, err := ReadAt(node.Client, blockInfo.BlockHash, int64(metaLen), 0)
 			log.Printf("dial to node finished, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
 			if err != nil {
 				if dialRetryTimes < 2 {
-					node = getRandonNode(ns)
 					log.Printf("retrying, idx: %d, block hash: %s, new node id: %s, diaRetryTimes: %d\n", idx, blockInfo.BlockHash, node.Id, dialRetryTimes)
 					dialRetryTimes++
 					goto lazyTry
 				}
 
 				log.Printf("retry failed, return, idx: %d, diaRetryTimes: %d \n", idx, dialRetryTimes)
+				return
+			}
+			if rc1 == nil {
+				log.Printf("get nil reader from node, node down, idx: %d, node id: %s, block hash: %s\n", idx, node.Id, blockInfo.BlockHash)
+				err = errors.New("ipfs node down")
 				return
 			}
 
