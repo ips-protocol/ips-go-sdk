@@ -364,9 +364,9 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 			dialRetryTimes := 0
 			downloadRetryTimes := 0
 		lazyTry:
-			log.Printf("dial to node start, idx: %d, node id: %s, block hash: %s\n", idx, node.Id, blockInfo.BlockHash)
+			dialStart := time.Now()
 			rc1, err := ReadAt(node.Client, blockInfo.BlockHash, int64(metaLen), 0)
-			log.Printf("dial to node finished, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
+			log.Printf("dial to node finished, idx: %d, node id: %s, block hash: %s, time elapsed: %s,  error: %#v \n", idx, node.Id, blockInfo.BlockHash, time.Now().Sub(dialStart), err)
 			if err != nil {
 				if dialRetryTimes < 2 {
 					log.Printf("retrying, idx: %d, block hash: %s, new node id: %s, diaRetryTimes: %d\n", idx, blockInfo.BlockHash, node.Id, dialRetryTimes)
@@ -383,9 +383,9 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 				return
 			}
 
-			log.Printf("block download start, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
+			copyStart := time.Now()
 			_, err = io.Copy(fhs[idx], rc1)
-			log.Printf("block download finished, idx: %d, node id: %s, block hash: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, err)
+			log.Printf("block download finished, idx: %d, node id: %s, block hash: %s, time elapsed: %s, error: %#v \n", idx, node.Id, blockInfo.BlockHash, time.Now().Sub(copyStart), err)
 			if err != nil {
 				if downloadRetryTimes < 3 {
 					log.Printf("retrying, idx: %d, downloadRetryTimes: %d \n", idx, downloadRetryTimes)
@@ -658,7 +658,6 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 
 func (c *Client) needRefresh() bool {
 	timeOut := c.NodesRefreshTime.Add(c.NodesRefreshDuration).Before(time.Now())
-	fmt.Println("====> need refresh", timeOut)
 	if timeOut || len(c.IpfsClients) == 0 {
 		return true
 	}
@@ -666,7 +665,6 @@ func (c *Client) needRefresh() bool {
 }
 
 func (c *Client) refreshNodePeers() error {
-	fmt.Println("----> refreshing node")
 	c.NodesRefreshTime = time.Now()
 	clients := make(map[string]*shell.Shell)
 	ps := c.IpfsNode.Peerstore.Peers()
