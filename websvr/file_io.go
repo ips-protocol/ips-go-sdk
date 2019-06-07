@@ -44,7 +44,7 @@ func (s *Service) FileUpload(ctx iris.Context) {
 	return
 }
 
-func (s *Service) FileRead(ctx iris.Context) {
+func (s *Service) FileStreamRead(ctx iris.Context) {
 	lg := ctx.Application().Logger()
 
 	cid := ctx.Params().Get("cid")
@@ -55,7 +55,7 @@ func (s *Service) FileRead(ctx iris.Context) {
 	}
 	lg.Info("file download cid:", cid)
 
-	rd, _, err := s.Node.Download(cid)
+	rd, _, err := s.Node.StreamRead(cid)
 	if err != nil {
 		lg.Errorf("file cid: %s download failed err: %s", cid, err)
 		ctx.StatusCode(iris.StatusInternalServerError)
@@ -86,7 +86,7 @@ func (s *Service) FileDownload(ctx iris.Context) {
 	}
 	lg.Info("file download cid:", cid)
 
-	_, err := s.Node.Download2(cid, ctx)
+	_, err := s.Node.Download(cid, ctx)
 	if err != nil {
 		lg.Errorf("file cid: %s download failed err: %s", cid, err)
 		ctx.StatusCode(iris.StatusInternalServerError)

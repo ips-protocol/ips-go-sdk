@@ -27,7 +27,7 @@ func Run(cfgPath string) {
 	app := iris.Default()
 	app.Post("/file/upload", service.FileUpload)
 	app.Get("/file/{cid: string}", service.FileDownload)
-	app.Get("/file/read/{cid: string}", service.FileRead)
+	app.Get("/file/steam/{cid: string}", service.FileStreamRead)
 	app.Delete("/file/{cid: string}", service.FileDelete)
 	app.Run(iris.Addr(cfg.ServerHost))
 }

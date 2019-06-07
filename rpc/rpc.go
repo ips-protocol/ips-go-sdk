@@ -255,7 +255,7 @@ func (c *Client) Remove(fHash string) error {
 	return err
 }
 
-func (c *Client) Download2(fileHash string, w io.Writer) (metaAll metafile.Meta, err error) {
+func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, err error) {
 	blocksInfo, err := c.GetBlocksInfo(fileHash)
 	if err != nil {
 		return
@@ -410,7 +410,7 @@ func getRandonNode(nodes []NodeClient) NodeClient {
 	return nodes[i]
 }
 
-func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
+func (c *Client) StreamRead(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
 	blocksInfo, err := c.GetBlocksInfo(fileHash)
 	if err != nil {
 		return
@@ -457,75 +457,6 @@ func (c *Client) Download(fileHash string) (rc io.ReadCloser, metaAll metafile.M
 		rcs[i] = rc1
 		log.Printf("read block, node id: %s, Block Hash: %s, error: %s \n", node.Id, blockInfo.BlockHash, err)
 	}
-
-	//if brokenShards != 0 {
-	//	log.Printf("shards num: %d broken shards: %d \n", shards, brokenShards)
-	//	mgr, err1 := file.NewBlockMgr(dataShards, parShards)
-	//	if err1 != nil {
-	//		err = err1
-	//		return
-	//	}
-	//
-	//	wg := &sync.WaitGroup{}
-	//	wg.Add(shards - brokenShards)
-	//	wtrs := make([]io.Writer, shards)
-	//	for i := range rcs {
-	//		fh, err1 := ioutil.TempFile("", meta.FName+"."+strconv.Itoa(i))
-	//		if err1 != nil {
-	//			err = err1
-	//			return
-	//		}
-	//		if rcs[i] != nil {
-	//			go func() {
-	//				defer wg.Done()
-	//				_, err = io.Copy(fh, rcs[i])
-	//				if err != nil {
-	//					return
-	//				}
-	//			}()
-	//		} else {
-	//			wtrs[i] = fh
-	//		}
-	//	}
-	//	wg.Wait()
-	//	rds := make([]io.Reader, shards)
-	//	for i := range rcs {
-	//		if rcs[i] != nil {
-	//			rcs[i].Close()
-	//
-	//			fh, err1 := os.Open(meta.FName + "." + strconv.Itoa(i))
-	//			if err1 != nil {
-	//				err = err1
-	//				return
-	//			}
-	//			rds[i] = fh
-	//		} else {
-	//			rds[i] = nil
-	//		}
-	//	}
-	//	err = mgr.Reconstruct(rds, wtrs)
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	for i := range rcs {
-	//		if rcs[i] == nil {
-	//			fh := wtrs[i].(*os.File)
-	//			fh.Seek(0, 0)
-	//			rcs[i] = fh
-	//		} else {
-	//			fh := rds[i].(*os.File)
-	//			fh.Seek(0, 0)
-	//			rcs[i] = fh
-	//		}
-	//
-	//		if i >= dataShards {
-	//			rcs[i].Close()
-	//		}
-	//	}
-	//
-	//	rcs = rcs[:dataShards]
-	//}
 
 	rc = utils.MultiReadCloser(rcs...)
 	return
