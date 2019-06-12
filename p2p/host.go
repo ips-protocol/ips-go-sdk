@@ -51,21 +51,25 @@ func DefaultRepo(dstore repo.Datastore, cfg conf.Config) (repo.Repo, error) {
 		return nil, err
 	}
 
-	c.Bootstrap = config.DefaultBootstrapAddresses
+	bootstrapPeers, err := config.DefaultBootstrapPeers()
+	if err != nil {
+		return nil, err
+	}
+	c.Bootstrap = config.BootstrapPeerStrings(bootstrapPeers)
 
 	port, err := netools.GetFreePort()
 	if err != nil {
 		return nil, err
 	}
-	c.Addresses.Swarm = []string{"/ip4/0.0.0.0/tcp/" + strconv.Itoa(port)}
+	c.Addresses.Swarm = []string{"/ip4/0.0.0.0/tcp/" + strconv.Itoa(port), "/ip6/::/tcp/" + strconv.Itoa(port)}
 	c.Identity.PeerID = pid.Pretty()
 	c.Identity.PrivKey = base64.StdEncoding.EncodeToString(privkeyb)
-	c.Discovery.MDNS.Enabled = true
+	// c.Discovery.MDNS.Enabled = true
 	c.Discovery.MDNS.Interval = 1
-	c.Routing.Type = "dhtclient"
+	c.Routing.Type = "dht"
 
 	c.Chain.URL = cfg.ContractConf.ContractNodeAddr
-	c.Chain.WalletPriKey = cfg.ContractConf.ClientKeyHex
+	// c.Chain.WalletPriKey = cfg.ContractConf.ClientKeyHex
 
 	mockRepo := &repo.Mock{
 		D: dstore,
