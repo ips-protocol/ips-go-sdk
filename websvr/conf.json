@@ -7,7 +7,7 @@
     "block_up_worker_count": 8,
     "contract_conf": {
         "client_key_hex": "B2FE66D78810869A64CAAE7B1F2C60CCA3AC2F2261DA2F1DE7040DE3F1FEDA9C",
-        "contract_node_addr": "https://mainnet.ipweb.top/"
+        "contract_node_addr": "https://mainnet.ipweb.top"
     }
   }
 }
