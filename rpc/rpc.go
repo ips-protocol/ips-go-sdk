@@ -63,7 +63,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	if cfg.NodeRequestTimeoutInSecond == 0 {
 		cfg.NodeRequestTimeoutInSecond = 60
 	}
-	cli.NodesRefreshDuration = time.Second * time.Duration(cfg.NodeRequestTimeoutInSecond)
+	cli.NodeRequestTimeout = time.Second * time.Duration(cfg.NodeRequestTimeoutInSecond)
 
 	if cfg.BlockUpWorkerCount == 0 {
 		cfg.BlockUpWorkerCount = 5
