@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ipweb-group/go-sdk/utils/netools"
 	"io"
 	"math/rand"
 	"strconv"
@@ -14,7 +15,6 @@ import (
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/contracts/storage"
 	"github.com/ipweb-group/go-sdk/p2p"
-	"github.com/ipweb-group/go-sdk/utils/netools"
 )
 
 var ErrNodeNotFound = errors.New("node not found")
@@ -79,12 +79,6 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	go cli.refreshNodePeers()
 
 	return
-}
-
-func getRandonNode(nodes []NodeClient) NodeClient {
-	rand.Seed(time.Now().UnixNano())
-	i := rand.Intn(len(nodes))
-	return nodes[i]
 }
 
 func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadCloser, err error) {
@@ -158,6 +152,32 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 	return
 }
 
+func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
+	port := 4001
+	available, _ := netools.IsLocalPortAvailable(port)
+	if !available {
+		port, err = netools.GetFreePort()
+		if err != nil {
+			return
+		}
+	}
+
+	err = c.P2PForward(port, peerId)
+	if err != nil {
+		return
+	}
+	url := fmt.Sprintf("127.0.0.1:%d", port)
+
+	cli = shell.NewShell(url)
+	cli.SetTimeout(c.NodeRequestTimeout)
+	_, err = cli.ID()
+	if err != nil {
+		c.P2PClose(0, peerId)
+	}
+
+	return
+}
+
 func (c *Client) needRefresh() bool {
 	timeOut := c.NodesRefreshTime.Add(c.NodesRefreshDuration).Before(time.Now())
 	if timeOut || len(c.IpfsClients) == 0 {
@@ -211,30 +231,10 @@ func (c *Client) refreshNodePeers() error {
 	return nil
 }
 
-func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
-	port := 4001
-	available, _ := netools.IsLocalPortAvailable(port)
-	if !available {
-		port, err = netools.GetFreePort()
-		if err != nil {
-			return
-		}
-	}
-
-	err = c.P2PForward(port, peerId)
-	if err != nil {
-		return
-	}
-	url := fmt.Sprintf("127.0.0.1:%d", port)
-
-	cli = shell.NewShell(url)
-	cli.SetTimeout(c.NodeRequestTimeout)
-	_, err = cli.ID()
-	if err != nil {
-		c.P2PClose(0, peerId)
-	}
-
-	return
+func getRandonNode(nodes []NodeClient) NodeClient {
+	rand.Seed(time.Now().UnixNano())
+	i := rand.Intn(len(nodes))
+	return nodes[i]
 }
 
 func (c *Client) P2PForward(port int, peerId string) error {

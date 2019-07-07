@@ -53,7 +53,7 @@ func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, 
 		for i := range fhs {
 			if fhs[i] == nil {
 				rdrs[i] = nil
-				wtrs[i], err = file.CreteTmpFile()
+				wtrs[i], err = file.CreateTmpFile()
 				if err != nil {
 					return
 				}
@@ -63,7 +63,7 @@ func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, 
 		}
 
 		log.Println("reconstruct start.")
-		err = mgr.Reconstruct(rdrs, wtrs)
+		err = mgr.StreamEncoder.Reconstruct(rdrs, wtrs)
 		if err != nil {
 			return
 		}
