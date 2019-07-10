@@ -5,8 +5,8 @@ import (
 	"hash"
 	"io"
 
-	"gx/ipfs/QmTbxNB1NwDesLmKTscr4udL2tVP7MaxvXnD1D9yX7g3PN/go-cid"
-	"gx/ipfs/QmerPMzPk1mJVowm8KgmoknWa4yCYvvugMPsgWmDNUvDLW/go-multihash"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 )
 
 func GetCID(r io.Reader) (id string, err error) {
@@ -20,7 +20,7 @@ func GetCID(r io.Reader) (id string, err error) {
 		return
 	}
 
-	id = cid.NewCidV0(ehs).String()
+	id = cid.NewCidV1(cid.Raw, ehs).String()
 	return
 }
 
@@ -32,6 +32,17 @@ func GetCidV0(h hash.Hash) (id string, err error) {
 	}
 
 	id = cid.NewCidV0(ehs).String()
+	return
+}
+
+func GetCidV1(h hash.Hash) (id string, err error) {
+	s := h.Sum(nil)
+	ehs, err := multihash.Encode(s[0:32], 0x12)
+	if err != nil {
+		return
+	}
+
+	id = cid.NewCidV1(cid.Raw, ehs).String()
 	return
 }
 

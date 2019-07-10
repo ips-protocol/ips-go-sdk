@@ -49,7 +49,7 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 		return
 	}
 
-	cid, err = file.GetCidV0(h)
+	cid, err = file.GetCidV1(h)
 	if err != nil {
 		return
 	}
