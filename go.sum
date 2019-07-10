@@ -292,12 +292,16 @@ github.com/ipfs/iptb v1.4.0/go.mod h1:1rzHpCYtNp87/+hTxG5TfCVn/yMY3dKnLn8tBiMfdm
 github.com/ipfs/iptb-plugins v0.0.2/go.mod h1:Vud+X6lHv5QlgVbqCPBHt91I0gPIRgmkD6/tMUsI07U=
 github.com/ipweb-group/go-ipws v0.9.0 h1:TFi/PxvJKxDD1mJsRz1ClDBn/7BpgRZAI2wOGyLA9io=
 github.com/ipweb-group/go-ipws v0.9.0/go.mod h1:93EP0kDSX/MhAXo0W0LhCb0gSdq1B5cglmeWgSVb14A=
+github.com/ipweb-group/go-ipws v0.9.1 h1:aO99JIlmcNhND6eTyRVB5DGTI8Vt8vvp/icZ9o2BibY=
+github.com/ipweb-group/go-ipws v0.9.1/go.mod h1:TTQpF2M7x/XV0HG7doMhhqmn6xHoNhAgFJ/X1/frYB4=
 github.com/ipweb-group/go-ipws-config v0.9.0 h1:iUf37h2LRiSi73YZWr9u73RE9m6W2wn+w3zr4Lj8k0o=
 github.com/ipweb-group/go-ipws-config v0.9.0/go.mod h1:+CFSQcvynJSCLX4Kj0JJrUgVZCGXe4707MIeBKj8ICQ=
 github.com/ipweb-group/interface-go-ipws-core v0.9.0 h1:cfx2BrjPQ/dpgmjpuQ3MnEcKfNjGYEuGgb3P8PvX1WI=
 github.com/ipweb-group/interface-go-ipws-core v0.9.0/go.mod h1:hyu++rTTQcO2hioC9vdOHTUjUgX+i1Bh73u5jG3vkYo=
 github.com/ipweb-group/ipw v0.9.0 h1:vwsUUiqCaN2GU20GHzcv9SS1i2iC+BZtSnD+JP0dQ3E=
 github.com/ipweb-group/ipw v0.9.0/go.mod h1:39AcQtI20lYmKJKBHWTFSnzBO6DkV/3Kux3JxWfs8oc=
+github.com/ipweb-group/ipw v1.9.0 h1:+nZaq2T0m0przLeMQxMbAZhJtlChCMzvLirpTjrDOn0=
+github.com/ipweb-group/ipw v1.9.0/go.mod h1:39AcQtI20lYmKJKBHWTFSnzBO6DkV/3Kux3JxWfs8oc=
 github.com/iris-contrib/blackfriday v2.0.0+incompatible h1:o5sHQHHm0ToHUlAJSTjW9UWicjJSDDauOOQ2AHuIVp4=
 github.com/iris-contrib/blackfriday v2.0.0+incompatible/go.mod h1:UzZ2bDEoaSGPbkg6SAB4att1aAwTmVIx/5gCVqeyUdI=
 github.com/iris-contrib/formBinder v0.0.0-20190104093907-fbd5963f41e1 h1:7GsNnSLoVceNylMpwcfy5aFNz/S5/TV25crb34I5PEo=

@@ -64,6 +64,6 @@ require (
 
 go 1.12
 
-replace github.com/ipfs/go-ipfs v0.4.21 => github.com/ipweb-group/go-ipws v0.9.0
+replace github.com/ipfs/go-ipfs v0.4.21 => github.com/ipweb-group/go-ipws v0.9.1
 
-replace github.com/ethereum/go-ethereum v1.8.7 => github.com/ipweb-group/ipw v0.9.0
+replace github.com/ethereum/go-ethereum v1.8.7 => github.com/ipweb-group/ipw v1.9.0
