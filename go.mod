@@ -36,6 +36,7 @@ require (
 	github.com/klauspost/compress v1.7.2 // indirect
 	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/klauspost/reedsolomon v1.9.2
+	github.com/libp2p/go-libp2p-core v0.0.8
 	github.com/libp2p/go-libp2p-crypto v0.0.2
 	github.com/libp2p/go-libp2p-peer v0.1.1
 	github.com/libp2p/go-libp2p-protocol v0.0.1
