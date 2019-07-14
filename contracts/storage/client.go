@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
 
@@ -69,7 +68,7 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSiz
 	transactor.Value = value
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
-	log.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
+	fmt.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
 	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)), big.NewInt(shardSize))
 	if err != nil {
 		return

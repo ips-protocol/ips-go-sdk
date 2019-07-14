@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-ipfs-api"
@@ -23,14 +24,15 @@ var ErrContractNotFound = errors.New("no contract code at given address")
 const P2pProtocl = "/sys/http"
 
 type Client struct {
-	IpfsClients              map[string]*shell.Shell
-	IpfsUnabailableClients   map[string]*shell.Shell
-	NodesRefreshTime         time.Time
-	NodesRefreshDuration     time.Duration
-	NodeRequestTimeout       time.Duration
-	BlockUpWorkerCount       int
-	BlockDownloadWorkerCount int
-	WalletPubKey             string
+	IpfsClients            map[string]*shell.Shell
+	IpfsUnabailableClients map[string]*shell.Shell
+	NodeRefreshTime        time.Time
+	NodeRefreshDuration    time.Duration
+	NodeRequestTimeout     time.Duration
+	NodeRefreshWorkers     int
+	BlockUploadWorkers     int
+	BlockDownloadWorkers   int
+	WalletPubKey           string
 	*storage.Client
 	*core.IpfsNode
 }
@@ -45,25 +47,30 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli = &Client{IpfsNode: n}
 	cli.IpfsClients = make(map[string]*shell.Shell)
 	cli.IpfsUnabailableClients = make(map[string]*shell.Shell)
-	if cfg.NodesRefreshIntervalInSecond == 0 {
-		cfg.NodesRefreshIntervalInSecond = 600
+	if cfg.NodeRefreshIntervalInSecond == 0 {
+		cfg.NodeRefreshIntervalInSecond = 600
 	}
-	cli.NodesRefreshDuration = time.Second * time.Duration(cfg.NodesRefreshIntervalInSecond)
+	cli.NodeRefreshDuration = time.Second * time.Duration(cfg.NodeRefreshIntervalInSecond)
+
+	if cfg.NodeRefreshWorkers == 0 {
+		cfg.NodeRefreshWorkers = 10
+	}
+	cli.NodeRefreshWorkers = cfg.NodeRefreshWorkers
 
 	if cfg.NodeRequestTimeoutInSecond == 0 {
 		cfg.NodeRequestTimeoutInSecond = 60
 	}
 	cli.NodeRequestTimeout = time.Second * time.Duration(cfg.NodeRequestTimeoutInSecond)
 
-	if cfg.BlockUpWorkerCount == 0 {
-		cfg.BlockUpWorkerCount = 5
+	if cfg.BlockUploadWorkers == 0 {
+		cfg.BlockUploadWorkers = 5
 	}
-	cli.BlockUpWorkerCount = cfg.BlockUpWorkerCount
+	cli.BlockUploadWorkers = cfg.BlockUploadWorkers
 
-	if cfg.BlockDownloadWorkerCount == 0 {
-		cfg.BlockDownloadWorkerCount = 5
+	if cfg.BlockDownloadWorkers == 0 {
+		cfg.BlockDownloadWorkers = 5
 	}
-	cli.BlockDownloadWorkerCount = cfg.BlockDownloadWorkerCount
+	cli.BlockDownloadWorkers = cfg.BlockDownloadWorkers
 
 	pubKey, err := conf.GetWalletPubKey()
 	if err != nil {
@@ -76,7 +83,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		return
 	}
 	cli.Client = c
-	go cli.refreshNodePeers()
+	go cli.refreshNodes()
 
 	return
 }
@@ -96,7 +103,7 @@ func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadClose
 
 func (c *Client) GetClientByPeerId(pId string) (node *shell.Shell, exist bool) {
 	if c.needRefresh() {
-		c.refreshNodePeers()
+		c.refreshNodes()
 	}
 
 	node, exist = c.IpfsClients[pId]
@@ -140,9 +147,9 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 		return
 	}
 
-	err = c.refreshNodePeers()
+	err = c.refreshNodes()
 	if err == ErrNodeNotFound {
-		err = c.refreshNodePeers()
+		err = c.refreshNodes()
 	}
 	if err != nil {
 		return
@@ -179,40 +186,58 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 }
 
 func (c *Client) needRefresh() bool {
-	timeOut := c.NodesRefreshTime.Add(c.NodesRefreshDuration).Before(time.Now())
+	timeOut := c.NodeRefreshTime.Add(c.NodeRefreshDuration).Before(time.Now())
 	if timeOut || len(c.IpfsClients) == 0 {
 		return true
 	}
 	return false
 }
 
-func (c *Client) refreshNodePeers() error {
-	c.NodesRefreshTime = time.Now()
+func (c *Client) refreshNodes() error {
+	c.NodeRefreshTime = time.Now()
 	clients := make(map[string]*shell.Shell)
+	var clientsWLock sync.Mutex
+	sema := make(chan int, c.NodeRefreshWorkers)
+
 	ps := c.IpfsNode.Peerstore.Peers()
 	for _, p := range ps {
-		id := p.Pretty()
-		cli, ok := c.IpfsClients[id]
-		if ok {
+		sema <- 1
+		go func() {
+			defer func() {
+				<-sema
+			}()
+
+			id := p.Pretty()
+			cli, ok := c.IpfsClients[id]
+			if ok {
+				clients[id] = cli
+				return
+			}
+
+			_, ok = c.IpfsUnabailableClients[id]
+			if ok {
+				return
+			}
+
+			cli, err := c.NewIpfsClient(id)
+			if err != nil {
+				c.IpfsUnabailableClients[id] = cli
+				c.P2PClose(0, id)
+				fmt.Println("bad peer: ", p.Pretty(), err)
+				return
+			}
+
+			fmt.Println("p2p peer: ", p.Pretty())
+			clientsWLock.Lock()
 			clients[id] = cli
-			continue
-		}
-
-		_, ok = c.IpfsUnabailableClients[id]
-		if ok {
-			continue
-		}
-
-		cli, err := c.NewIpfsClient(id)
-		if err != nil {
-			c.IpfsUnabailableClients[id] = cli
-			c.P2PClose(0, id)
-			fmt.Println("bad peer: ", p.Pretty(), err)
-			continue
-		}
-
-		fmt.Println("p2p peer: ", p.Pretty())
-		clients[id] = cli
+			clientsWLock.Unlock()
+		}()
+	}
+	for i := 0; i < c.NodeRefreshWorkers; i++ {
+		sema <- 1
+	}
+	if len(clients) == 0 {
+		return ErrNodeNotFound
 	}
 
 	for id := range c.IpfsClients {
@@ -222,13 +247,12 @@ func (c *Client) refreshNodePeers() error {
 
 		c.P2PClose(0, id)
 	}
-
-	if len(clients) == 0 {
-		return ErrNodeNotFound
-	}
-
 	c.IpfsClients = clients
 	return nil
+}
+
+func (c *Client) addClient() {
+
 }
 
 func getRandonNode(nodes []NodeClient) NodeClient {

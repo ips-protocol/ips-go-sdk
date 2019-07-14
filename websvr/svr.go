@@ -29,5 +29,6 @@ func Run(cfgPath string) {
 	app.Get("/file/{cid: string}", service.FileDownload)
 	app.Get("/file/stream/{cid: string}", service.FileStreamRead)
 	app.Delete("/file/{cid: string}", service.FileDelete)
+	app.Get("/nodes", service.NodesList)
 	app.Run(iris.Addr(cfg.ServerHost))
 }

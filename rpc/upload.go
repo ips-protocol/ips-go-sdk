@@ -58,8 +58,10 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	meta.WalletPubKey = c.WalletPubKey
 	shardSize += int64(len(meta.Encode(0)))
 	shards := dataShards + parShards
+	log.Printf("NewUploadJob cid: %s, fsize: %d, shards: %d, shardSize: %d:", cid, fsize, shards, shardSize)
 	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
 	if err != nil {
+		log.Println("NewUploadJob Error:", err)
 		return
 	}
 
@@ -81,7 +83,7 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 	close(shardIdCh)
 	errCh := make(chan error, shards)
 	wg := sync.WaitGroup{}
-	wg.Add(c.BlockUpWorkerCount)
+	wg.Add(c.BlockUploadWorkers)
 	worker := func() {
 		defer wg.Done()
 		for id := range shardIdCh {
@@ -113,7 +115,7 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			log.Printf("block hash: %s, node id: %s, err: %#v", blkHash, node.Id, err)
 		}
 	}
-	for i := 0; i < c.BlockUpWorkerCount; i++ {
+	for i := 0; i < c.BlockUploadWorkers; i++ {
 		go worker()
 	}
 	wg.Wait()

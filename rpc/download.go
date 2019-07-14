@@ -149,7 +149,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 		return
 	}
 
-	sem := make(chan bool, c.BlockDownloadWorkerCount)
+	sem := make(chan bool, c.BlockDownloadWorkers)
 	for i := 0; i < blockNum; i++ {
 		sem <- true
 		go func(idx int) (err error) {
@@ -210,7 +210,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 		}(i)
 	}
 	//wait
-	for i := 0; i < c.BlockDownloadWorkerCount; i++ {
+	for i := 0; i < c.BlockDownloadWorkers; i++ {
 		sem <- true
 	}
 	return
