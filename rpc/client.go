@@ -88,7 +88,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		return
 	}
 	cli.Client = c
-	go cli.refreshNodes()
+	go cli.refreshNodesTick()
 
 	return
 }
@@ -103,15 +103,6 @@ func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadClose
 		return
 	}
 	rc = resp.Output
-	return
-}
-
-func (c *Client) GetClientByPeerId(pId string) (node *shell.Shell, exist bool) {
-	if c.needRefresh() {
-		c.refreshNodes()
-	}
-
-	node, exist = c.IpfsClients[pId]
 	return
 }
 
@@ -147,7 +138,7 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 		}
 		return append(ns1, ns2...)
 	}
-	if !c.needRefresh() {
+	if len(c.IpfsClients) != 0 {
 		ns = getNodes()
 		return
 	}
@@ -190,12 +181,20 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 	return
 }
 
-func (c *Client) needRefresh() bool {
-	timeOut := c.NodeRefreshTime.Add(c.NodeRefreshDuration).Before(time.Now())
-	if timeOut || len(c.IpfsClients) == 0 {
-		return true
+func (c *Client) refreshNodesTick() {
+	err := c.refreshNodes()
+	if err != nil {
+		fmt.Println("refreshNodes err: ", err)
 	}
-	return false
+	for {
+		select {
+		case <-time.Tick(c.NodeRefreshDuration):
+			err = c.refreshNodes()
+			if err != nil {
+				fmt.Println("refreshNodes err: ", err)
+			}
+		}
+	}
 }
 
 func (c *Client) refreshNodes() error {
