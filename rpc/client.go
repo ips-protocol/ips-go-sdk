@@ -227,7 +227,7 @@ func (c *Client) refreshNodes() error {
 
 			cli, err := c.NewIpfsClient(id)
 			if err != nil {
-				fmt.Println("bad peer: ", p.Pretty(), err)
+				fmt.Println("bad peer: ", id, err)
 
 				c.IpfsUnavailableClientsMux.Lock()
 				c.IpfsUnavailableClients[id] = cli
@@ -237,7 +237,7 @@ func (c *Client) refreshNodes() error {
 				return
 			}
 
-			fmt.Println("p2p peer: ", p.Pretty())
+			fmt.Println("p2p peer: ", id)
 			c.IpfsClientsMux.Lock()
 			c.IpfsClients[id] = cli
 			c.IpfsClientsMux.Unlock()
