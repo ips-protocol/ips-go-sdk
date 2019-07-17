@@ -9,10 +9,10 @@ import (
 func main() {
 
 	ccfg := conf.ContractConfig{
-		ClientKeyHex:     "5BEE78415C36E7DC7C7652957157C3E74011E1E8A8A344BD738A17E64DE37988",
-		ContractNodeAddr: "http://180.97.144.181:8545",
+		ClientKeyHex:     "B2FE66D78810869A64CAAE7B1F2C60CCA3AC2F2261DA2F1DE7040DE3F1FEDA9C",
+		ContractNodeAddr: "https://mainnet.ipweb.top",
 	}
-	cfg := conf.Config{ContractConf: ccfg, BlockUpWorkerCount: 3}
+	cfg := conf.Config{ContractConf: ccfg, BlockUploadWorkers: 3}
 
 	cli, err := rpc.NewClient(cfg)
 	if err != nil {

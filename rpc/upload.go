@@ -3,7 +3,6 @@ package rpc
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -45,60 +44,32 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	}
 	r := io.TeeReader(rdr, h)
 
-	//dataFhs := make([]*os.File, dataShards)
-	dataFhs, err := mgr.Split(r, fsize)
-	if err != nil {
-		return
-	}
-	cid, err = file.GetCidV0(h)
+	fhs, err := mgr.RsEncode(r, file.DefaultMaxFsizeInMem)
 	if err != nil {
 		return
 	}
 
-	parFhs, err := file.CreateTmpFiles(parShards)
+	cid, err = file.GetCidV1(h)
 	if err != nil {
 		return
 	}
-
-	fmt.Println("===> shards:", dataShards, "parshards:", parShards, "shardsize:", shardSize)
-	dataFhRdrs := make([]io.Reader, dataShards)
-	for i := range dataFhRdrs {
-		dataFhRdrs[i] = dataFhs[i]
-	}
-	parFhWtrs := make([]io.Writer, parShards)
-	for i := range parFhWtrs {
-		parFhWtrs[i] = parFhs[i]
-	}
-	err = mgr.Encode(dataFhRdrs, parFhWtrs)
-	if err != nil {
-		return
-	}
-	fhs := append(dataFhs, parFhs...)
-	defer func() {
-		err := file.DeleteTempFiles(fhs)
-		if err != nil {
-			log.Println("delete files failed:", err)
-		}
-	}()
 
 	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 	meta.WalletPubKey = c.WalletPubKey
 	shardSize += int64(len(meta.Encode(0)))
 	shards := dataShards + parShards
+	log.Printf("NewUploadJob cid: %s, fsize: %d, shards: %d, shardSize: %d:", cid, fsize, shards, shardSize)
 	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
 	if err != nil {
+		log.Println("NewUploadJob Error:", err)
 		return
 	}
 
-	for i := range fhs {
-		fhs[i].Seek(0, 0)
-	}
 	err = c.upload(fhs, meta)
-
 	return
 }
 
-func (c *Client) upload(fhs []*os.File, meta metafile.Meta) error {
+func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 	shards := len(fhs)
 	nodes, err := c.GetNodeClients("")
 	if err != nil {
@@ -112,7 +83,7 @@ func (c *Client) upload(fhs []*os.File, meta metafile.Meta) error {
 	close(shardIdCh)
 	errCh := make(chan error, shards)
 	wg := sync.WaitGroup{}
-	wg.Add(c.BlockUpWorkerCount)
+	wg.Add(c.BlockUploadWorkers)
 	worker := func() {
 		defer wg.Done()
 		for id := range shardIdCh {
@@ -123,12 +94,10 @@ func (c *Client) upload(fhs []*os.File, meta metafile.Meta) error {
 
 			mr := bytes.NewBuffer(meta.Encode(id))
 			var r io.Reader
-			if retry == 0 {
-				r = io.MultiReader(mr, fhs[id])
-			} else {
+			if retry != 0 {
 				fhs[id].Seek(0, 0)
-				r = io.MultiReader(mr, fhs[id])
 			}
+			r = io.MultiReader(mr, fhs[id])
 
 			blkHash, err := node.Client.Add(r)
 			if err != nil {
@@ -138,11 +107,15 @@ func (c *Client) upload(fhs []*os.File, meta metafile.Meta) error {
 					goto lazyTry
 				}
 				errCh <- err
+				err1 := fhs[id].Close()
+				if err1 != nil {
+					log.Println("file close failed:", err1)
+				}
 			}
 			log.Printf("block hash: %s, node id: %s, err: %#v", blkHash, node.Id, err)
 		}
 	}
-	for i := 0; i < c.BlockUpWorkerCount; i++ {
+	for i := 0; i < c.BlockUploadWorkers; i++ {
 		go worker()
 	}
 	wg.Wait()

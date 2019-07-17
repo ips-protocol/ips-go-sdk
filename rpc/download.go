@@ -53,7 +53,7 @@ func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, 
 		for i := range fhs {
 			if fhs[i] == nil {
 				rdrs[i] = nil
-				wtrs[i], err = file.CreteTmpFile()
+				wtrs[i], err = file.CreateTmpFile()
 				if err != nil {
 					return
 				}
@@ -63,7 +63,7 @@ func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, 
 		}
 
 		log.Println("reconstruct start.")
-		err = mgr.Reconstruct(rdrs, wtrs)
+		err = mgr.StreamEncoder.Reconstruct(rdrs, wtrs)
 		if err != nil {
 			return
 		}
@@ -149,7 +149,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 		return
 	}
 
-	sem := make(chan bool, c.BlockDownloadWorkerCount)
+	sem := make(chan bool, c.BlockDownloadWorkers)
 	for i := 0; i < blockNum; i++ {
 		sem <- true
 		go func(idx int) (err error) {
@@ -210,7 +210,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 		}(i)
 	}
 	//wait
-	for i := 0; i < c.BlockDownloadWorkerCount; i++ {
+	for i := 0; i < c.BlockDownloadWorkers; i++ {
 		sem <- true
 	}
 	return

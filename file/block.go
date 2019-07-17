@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,13 +15,15 @@ import (
 
 var ErrShortData = errors.New("short data")
 
-const DefaultBlockSize = 1 << 26 //64MB default
+const DefaultBlockSize = 1 << 26     //64MB default
+const DefaultMaxFsizeInMem = 1 << 27 //128MB default
 const MaxBlockCount = 170
 
 type BlockMgr struct {
 	DataShards int
 	ParShards  int
 	reedsolomon.StreamEncoder
+	reedsolomon.Encoder
 }
 
 func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *BlockMgr, err error) {
@@ -29,7 +32,12 @@ func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *Block
 		return
 	}
 
-	e, err := reedsolomon.NewStream(dataShards, parShards, o...)
+	se, err := reedsolomon.NewStream(dataShards, parShards, o...)
+	if err != nil {
+		return
+	}
+
+	be, err := reedsolomon.New(dataShards, parShards, o...)
 	if err != nil {
 		return
 	}
@@ -37,17 +45,76 @@ func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *Block
 	mgr = &BlockMgr{
 		DataShards:    dataShards,
 		ParShards:     parShards,
-		StreamEncoder: e,
+		StreamEncoder: se,
+		Encoder:       be,
 	}
 	return
 }
 
-func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []*os.File, err error) {
+func (m *BlockMgr) RsEncode(r io.Reader, memThreshold int64) (fhs []File, err error) {
+	fh, fsize, err := FileStream(r, memThreshold)
+	if err != nil {
+		return
+	}
+	if fsize < memThreshold {
+		data, err := ioutil.ReadAll(fh)
+		if err != nil {
+			return nil, err
+		}
+
+		shards, err := m.Encoder.Split(data)
+		if err != nil {
+			return nil, err
+		}
+
+		err = m.Encoder.Encode(shards)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, shard := range shards {
+			fhs = append(fhs, newBytesReader(shard))
+		}
+		return fhs, nil
+	}
+
+	dataFhs, err := m.Split(fh, fsize)
+	if err != nil {
+		return
+	}
+
+	parFhs, err := NewTmpFiles(m.ParShards)
+	if err != nil {
+		return
+	}
+
+	dataFhRdrs := make([]io.Reader, m.DataShards)
+	for i := range dataFhRdrs {
+		dataFhRdrs[i] = dataFhs[i]
+	}
+	parFhWtrs := make([]io.Writer, m.ParShards)
+	for i := range parFhWtrs {
+		parFhWtrs[i] = parFhs[i]
+	}
+
+	err = m.StreamEncoder.Encode(dataFhRdrs, parFhWtrs)
+	if err != nil {
+		return
+	}
+	fhs = append(dataFhs, parFhs...)
+	for i := range fhs {
+		fhs[i].Seek(0, 0)
+	}
+
+	return
+}
+
+func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []File, err error) {
 	if size == 0 {
 		return fhs, ErrShortData
 	}
 
-	fhs, err = CreateTmpFiles(m.DataShards)
+	fhs, err = NewTmpFiles(m.DataShards)
 	if err != nil {
 		return fhs, err
 	}
@@ -112,7 +179,7 @@ func CreateTmpFiles(count int) (fhs []*os.File, err error) {
 	return
 }
 
-func CreteTmpFile() (fh *os.File, err error) {
+func CreateTmpFile() (fh *os.File, err error) {
 	tmpFname := filepath.Join(os.TempDir(), strconv.FormatInt(time.Now().UnixNano(), 10))
 	fh, err = os.Create(tmpFname)
 	return
@@ -154,7 +221,7 @@ func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader
 		}
 	}
 
-	err = m.Encode(rs, parWs)
+	err = m.StreamEncoder.Encode(rs, parWs)
 	if err != nil {
 		return
 	}

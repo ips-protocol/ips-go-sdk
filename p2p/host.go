@@ -6,12 +6,12 @@ import (
 	"encoding/base64"
 	"strconv"
 
-	ci "gx/ipfs/QmTW4SdgBWq9GjsBsHeUx8WuGxzhgzAf88UMH2w62PC8yK/go-libp2p-crypto"
-	"gx/ipfs/QmUadX5EcvrBmxAV9sE7wUWtWSqxns5K84qKJBixmcT1w9/go-datastore"
-	peer "gx/ipfs/QmYVXrKrKHDC9FobgmcmshCDyWwdrfwfanNQN4oxJ9Fk3h/go-libp2p-peer"
+	ci "github.com/libp2p/go-libp2p-crypto"
+	"github.com/ipfs/go-datastore"
+	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/go-ipfs/commands"
-	"github.com/ipfs/go-ipfs/config"
+	"github.com/ipweb-group/go-ipws-config"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo"
 	"github.com/ipweb-group/go-sdk/conf"
@@ -81,7 +81,7 @@ func DefaultRepo(dstore repo.Datastore, cfg conf.Config) (repo.Repo, error) {
 
 func Ctx(node *core.IpfsNode, repoPath string) commands.Context {
 	return commands.Context{
-		Online:     true,
+		// Online:     true,
 		ConfigRoot: repoPath,
 		LoadConfig: func(path string) (*config.Config, error) {
 			return node.Repo.Config()
