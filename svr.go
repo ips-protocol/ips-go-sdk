@@ -1,7 +1,12 @@
 package main
 
-import "github.com/ipweb-group/go-sdk/websvr"
+import (
+	"./putPolicy"
+	"./websvr"
+)
 
 func main() {
+	putPolicy.LoadAppClients("./websvr/app-clients.json")
+
 	websvr.Run("./websvr/conf.json")
 }
