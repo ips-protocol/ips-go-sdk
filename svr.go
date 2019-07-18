@@ -1,8 +1,8 @@
 package main
 
 import (
-	"./putPolicy"
-	"./websvr"
+	"github.com/ipweb-group/go-sdk/putPolicy"
+	"github.com/ipweb-group/go-sdk/websvr"
 )
 
 func main() {

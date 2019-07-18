@@ -298,6 +298,8 @@ github.com/ipweb-group/go-ipws v0.9.0 h1:TFi/PxvJKxDD1mJsRz1ClDBn/7BpgRZAI2wOGyL
 github.com/ipweb-group/go-ipws v0.9.0/go.mod h1:93EP0kDSX/MhAXo0W0LhCb0gSdq1B5cglmeWgSVb14A=
 github.com/ipweb-group/go-ipws v0.9.1 h1:aO99JIlmcNhND6eTyRVB5DGTI8Vt8vvp/icZ9o2BibY=
 github.com/ipweb-group/go-ipws v0.9.1/go.mod h1:TTQpF2M7x/XV0HG7doMhhqmn6xHoNhAgFJ/X1/frYB4=
+github.com/ipweb-group/go-ipws v0.9.2 h1:a7v0Iah4t98XmUR+Ang77JmNQ+cPSm9Npgr5vgi7Rkw=
+github.com/ipweb-group/go-ipws v0.9.2/go.mod h1:TTQpF2M7x/XV0HG7doMhhqmn6xHoNhAgFJ/X1/frYB4=
 github.com/ipweb-group/go-ipws-config v0.9.0 h1:iUf37h2LRiSi73YZWr9u73RE9m6W2wn+w3zr4Lj8k0o=
 github.com/ipweb-group/go-ipws-config v0.9.0/go.mod h1:+CFSQcvynJSCLX4Kj0JJrUgVZCGXe4707MIeBKj8ICQ=
 github.com/ipweb-group/interface-go-ipws-core v0.9.0 h1:cfx2BrjPQ/dpgmjpuQ3MnEcKfNjGYEuGgb3P8PvX1WI=
