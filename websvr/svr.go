@@ -5,19 +5,8 @@ import (
 	"github.com/kataras/iris"
 )
 
-type Config struct {
-	ServerWriteTimeoutInSecond int         `json:"server_write_timeout_in_second"`
-	ServerReadTimeoutInSecond  int         `json:"server_read_timeout_in_second"`
-	ServerHost                 string      `json:"server_host"`
-	NodeConf                   conf.Config `json:"node_conf"`
-}
-
-func Run(cfgPath string) {
-	cfg := Config{}
-	err := conf.LoadConf(&cfg, cfgPath)
-	if err != nil {
-		panic(err)
-	}
+func Run() {
+	cfg := conf.GetConfig()
 
 	service, err := NewService(cfg.NodeConf)
 	if err != nil {
@@ -30,5 +19,10 @@ func Run(cfgPath string) {
 	app.Get("/file/stream/{cid: string}", service.FileStreamRead)
 	app.Delete("/file/{cid: string}", service.FileDelete)
 	app.Get("/nodes", service.NodesList)
-	app.Run(iris.Addr(cfg.ServerHost))
+
+	err = app.Run(iris.Addr(cfg.ServerHost))
+	if err != nil {
+		panic(err)
+	}
+
 }
