@@ -2,12 +2,15 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/ipfs/go-ipfs/metafile"
 	"github.com/ipweb-group/go-sdk/file"
@@ -58,7 +61,7 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	meta.WalletPubKey = c.WalletPubKey
 	shardSize += int64(len(meta.Encode(0)))
 	shards := dataShards + parShards
-	log.Printf("NewUploadJob cid: %s, fsize: %d, shards: %d, shardSize: %d:", cid, fsize, shards, shardSize)
+	//fmt.Printf("NewUploadJob cid: %s, fsize: %d, shards: %d, shardSize: %d\n", cid, fsize, shards, shardSize)
 	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
 	if err != nil {
 		log.Println("NewUploadJob Error:", err)
@@ -66,6 +69,9 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	}
 
 	err = c.upload(fhs, meta)
+	if err != nil {
+		err = c.DeleteFile(cid)
+	}
 	return
 }
 
@@ -76,20 +82,39 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 		return err
 	}
 
+	//close all files
+	defer func() {
+		for i := 0; i < shards; i++ {
+			fhs[i].Close()
+		}
+	}()
+
+	//id/err chanel
 	shardIdCh := make(chan int, shards)
 	for i := 0; i < shards; i++ {
 		shardIdCh <- i
 	}
 	close(shardIdCh)
 	errCh := make(chan error, shards)
+
+	//if failed cancel instantly
+	ctx, cancel := context.WithCancel(context.Background())
+	rand.Seed(time.Now().UnixNano())
+	//upload wokers
 	wg := sync.WaitGroup{}
 	wg.Add(c.BlockUploadWorkers)
 	worker := func() {
 		defer wg.Done()
 		for id := range shardIdCh {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			retry := 0
+
 		lazyTry:
-			nodeIdx := (id + retry) % len(nodes)
+			nodeIdx := rand.Int() % len(nodes)
 			node := nodes[nodeIdx]
 
 			mr := bytes.NewBuffer(meta.Encode(id))
@@ -103,16 +128,13 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			if err != nil {
 				if retry < len(nodes) {
 					retry++
-					log.Println("err:", err, "retrying... retry times:", retry)
+					log.Println("err: ", err, "retrying... retry times:", retry)
 					goto lazyTry
 				}
 				errCh <- err
-				err1 := fhs[id].Close()
-				if err1 != nil {
-					log.Println("file close failed:", err1)
-				}
+				cancel()
 			}
-			log.Printf("block hash: %s, node id: %s, err: %#v", blkHash, node.Id, err)
+			log.Printf("block hash: %s, node id: %s, upload err: %+v", blkHash, node.Id, err)
 		}
 	}
 	for i := 0; i < c.BlockUploadWorkers; i++ {
@@ -120,8 +142,9 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 	}
 	wg.Wait()
 	close(errCh)
-	for err1 := range errCh {
-		return err1
+
+	if ctx.Err() != nil {
+		return <-errCh
 	}
 	return nil
 }

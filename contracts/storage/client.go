@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -23,6 +24,8 @@ var storageDepositContractAddr = common.HexToAddress("0x000000000000000000000000
 type Client struct {
 	conf.ContractConfig
 	*ethclient.Client
+	nonce    uint64
+	nonceMux sync.RWMutex
 }
 
 func NewClient(cfg conf.ContractConfig) (cli *Client, err error) {
@@ -31,6 +34,11 @@ func NewClient(cfg conf.ContractConfig) (cli *Client, err error) {
 		return
 	}
 	cli = &Client{Client: client, ContractConfig: cfg}
+	//nonce, err := cli.NonceAt(context.Background(), cli.GetClientAddress(), nil)
+	//if err != nil {
+	//	return
+	//}
+	//cli.nonce = nonce
 	return
 }
 func (c *Client) NewKeyedTransactor() *bind.TransactOpts {
@@ -60,15 +68,22 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSiz
 	if err != nil {
 		return
 	}
+
+	c.GetClientKey()
 	transactor.GasPrice = big.NewInt(0)
-	fmt.Println("client.NewUploadJob bytePrice, shardSize, shards=", bytePrice, shardSize, shards)
+
+	//c.nonceMux.Lock()
+	//c.nonce++
+	//transactor.Nonce = big.NewInt(int64(c.nonce))
+	//c.nonceMux.Unlock()
+
+	fmt.Printf("client.NewUploadJob hash: %s bytePrice: %d, shardSize: %d, shards: %d\n", fileHash, bytePrice, shardSize, shards)
 	value := big.NewInt(bytePrice.Int64())
 	value.Mul(value, big.NewInt(shardSize))
 	value.Mul(value, big.NewInt(int64(shards)))
 	transactor.Value = value
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
-	fmt.Println("fileHash:", fileHash, "\tfsize:", fsize, "\tshards:", shards)
 	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)), big.NewInt(shardSize))
 	if err != nil {
 		return

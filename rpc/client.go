@@ -173,10 +173,11 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 
 	cli = shell.NewShell(url)
 	cli.SetTimeout(c.NodeRequestTimeout)
-	_, err = cli.ID()
+	pinfo, err := cli.ID()
 	if err != nil {
 		c.P2PClose(0, peerId)
 	}
+	fmt.Printf("info: %+v", pinfo)
 
 	return
 }
