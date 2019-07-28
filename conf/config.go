@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -17,24 +16,6 @@ const walletKey = "5BEE78415C36E7DC7C7652957157C3E74011E1E8A8A344BD738A17E64DE37
 type ECConfig struct {
 	DataShards int `json:"data_shards"`
 	ParShards  int `json:"par_shards"`
-}
-
-type ContractConfig struct {
-	ClientKeyHex     string `json:"client_key_hex"`
-	ContractNodeAddr string `json:"contract_node_addr"`
-}
-
-func (cfg ContractConfig) GetClientKey() *ecdsa.PrivateKey {
-	clientKey, err := crypto.HexToECDSA(cfg.ClientKeyHex)
-	if err != nil {
-		panic(err)
-	}
-	return clientKey
-}
-
-func (cfg ContractConfig) GetClientAddress() common.Address {
-	pubKey := cfg.GetClientKey().PublicKey
-	return crypto.PubkeyToAddress(pubKey)
 }
 
 type Config struct {
@@ -47,18 +28,40 @@ type Config struct {
 	ECConfig
 }
 
-func LoadConf(cfg interface{}, cfgPath string) error {
+/**
+ * 服务器配置
+ */
+type ServerConfig struct {
+	ServerWriteTimeoutInSecond int    `json:"server_write_timeout_in_second"`
+	ServerReadTimeoutInSecond  int    `json:"server_read_timeout_in_second"`
+	ServerHost                 string `json:"server_host"`
+	NodeConf                   Config `json:"node_conf"`
+}
+
+/**
+ * 服务器配置缓存。服务启用后加载一次配置文件内容，之后将会缓存下来
+ */
+var configCache ServerConfig
+
+func LoadConfig(cfgPath string) {
 	f, err := os.Open(cfgPath)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	return json.Unmarshal(b, cfg)
+	err = json.Unmarshal(b, &configCache)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func GetConfig() ServerConfig {
+	return configCache
 }
 
 func GetWalletPubKey() (pubKey string, err error) {
