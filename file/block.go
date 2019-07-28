@@ -5,10 +5,6 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strconv"
-	"time"
 
 	"github.com/klauspost/reedsolomon"
 )
@@ -146,56 +142,6 @@ func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []File, err error) {
 	}
 
 	return
-}
-
-func DeleteTempFiles(fhs []*os.File) error {
-	for i := range fhs {
-		if fhs[i] == nil {
-			continue
-		}
-		err := fhs[i].Close()
-		if err != nil {
-			return err
-		}
-
-		err = os.Remove(fhs[i].Name())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func CreateTmpFiles(count int) (fhs []*os.File, err error) {
-	tmpFname := filepath.Join(os.TempDir(), strconv.FormatInt(time.Now().UnixNano(), 10))
-	fhs = make([]*os.File, count)
-	for i := range fhs {
-		fname := tmpFname + "." + strconv.Itoa(i)
-		fhs[i], err = os.Create(fname)
-		if err != nil {
-			return
-		}
-	}
-	return
-}
-
-func CreateTmpFile() (fh *os.File, err error) {
-	tmpFname := filepath.Join(os.TempDir(), strconv.FormatInt(time.Now().UnixNano(), 10))
-	fh, err = os.Create(tmpFname)
-	return
-}
-
-func SeekToStart(fhs []*os.File) error {
-	for i := range fhs {
-		if fhs[i] == nil {
-			continue
-		}
-		_, err := fhs[i].Seek(0, 0)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader, err error) {

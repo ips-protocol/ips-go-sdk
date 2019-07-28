@@ -61,7 +61,6 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	meta.WalletPubKey = c.WalletPubKey
 	shardSize += int64(len(meta.Encode(0)))
 	shards := dataShards + parShards
-	//fmt.Printf("NewUploadJob cid: %s, fsize: %d, shards: %d, shardSize: %d\n", cid, fsize, shards, shardSize)
 	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
 	if err != nil {
 		log.Println("NewUploadJob Error:", err)

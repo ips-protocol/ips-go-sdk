@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
 	"github.com/ipfs/go-ipfs-api"
@@ -53,7 +52,7 @@ func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, 
 		for i := range fhs {
 			if fhs[i] == nil {
 				rdrs[i] = nil
-				wtrs[i], err = file.CreateTmpFile()
+				wtrs[i], err = file.NewTmpFile()
 				if err != nil {
 					return
 				}
@@ -69,13 +68,11 @@ func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, 
 		}
 		log.Println("reconstruct end.")
 
-		file.SeekToStart(fhs)
 		for i := range fhs {
 			if fhs[i] == nil {
-				fh := wtrs[i].(*os.File)
-				fh.Seek(0, 0)
-				fhs[i] = fh
+				fhs[i] = wtrs[i].(file.File)
 			}
+			fhs[i].Seek(0, 0)
 		}
 		dataFhs = fhs[:dataShards]
 	}
@@ -142,9 +139,9 @@ func (c *Client) StreamRead(fileHash string) (rc io.ReadCloser, metaAll metafile
 	return
 }
 
-func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*os.File, hasBroken bool, err error) {
+func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []file.File, hasBroken bool, err error) {
 	blockNum := len(blocksInfo)
-	fhs, err = file.CreateTmpFiles(blockNum)
+	fhs, err = file.NewTmpFiles(blockNum)
 	if err != nil {
 		return
 	}
@@ -159,7 +156,6 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []*o
 				if err != nil {
 					log.Printf("block download failed idx: %d, error: %#v\n", idx, err)
 					fhs[idx].Close()
-					os.Remove(fhs[idx].Name())
 					fhs[idx] = nil
 					hasBroken = true
 				} else {
