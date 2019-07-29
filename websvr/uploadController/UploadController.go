@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/putPolicy"
+	"github.com/ipweb-group/go-sdk/putPolicy/persistent"
 	"github.com/ipweb-group/go-sdk/rpc"
 	"github.com/ipweb-group/go-sdk/utils"
 	"github.com/kataras/iris"
@@ -11,11 +12,14 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -62,6 +66,12 @@ func (s *UploadController) Upload(ctx iris.Context) {
 
 	defer file.Close()
 
+	// TODO 上传有效期的校验
+
+	// TODO 文件大小限制
+
+	// TODO 根据 EndUser 参数进行扣款。扣款操作直接记录在链上
+
 	// 上传文件到 IPFS
 	cid, err := s.Node.Upload(file, fileHeader.Filename, fileHeader.Size)
 	if err != nil {
@@ -69,16 +79,44 @@ func (s *UploadController) Upload(ctx iris.Context) {
 		return
 	}
 
-	mimeType := mime.TypeByExtension(path.Ext(fileHeader.Filename))
+	fileExt := path.Ext(fileHeader.Filename)
+	mimeType := mime.TypeByExtension(fileExt)
 	var width int
 	var height int
 
 	if mimeType == "image/jpeg" || mimeType == "image/png" || mimeType == "image/gif" {
+		ctx.Application().Logger().Info("File is of supported image type, will process image size detector")
 		// 获取图片宽高信息出错时不做任何处理，保持默认宽高为 0 即可
 		width, height, err = getImageSize(file)
 		if err != nil {
 			ctx.Application().Logger().Warn(err.Error())
 		}
+	}
+
+	// 处理视频文件
+	if match, _ := regexp.MatchString("video/.*", mimeType); match {
+		// 如果启用了持久化功能，并且类型是转换视频格式，将会把当前文件写入临时目录并添加到 Redis 队列
+		if decodedPutPolicy.PutPolicy.PersistentOps == "convertVideo" {
+			ctx.Application().Logger().Info("File is of type video, will process video converter")
+			tmpFilePath, err := writeTmpFile(file, cid, fileExt)
+			// 写入临时文件出错时不做任何处理
+			if err != nil {
+				ctx.Application().Logger().Warnf("Write video to tmp dir failed [%v]", err)
+
+			} else {
+				// 写入视频任务到 Redis 队列
+				persistent.AddTaskToUnprocessedQueue(&persistent.VideoTask{
+					Cid:                 cid,
+					FilePath:            tmpFilePath,
+					PersistentOps:       decodedPutPolicy.PutPolicy.PersistentOps,
+					PersistentNotifyUrl: decodedPutPolicy.PutPolicy.PersistentNotifyUrl,
+				})
+
+				ctx.Application().Logger().Infof("Save video to temp file and queue to redis: %s", tmpFilePath)
+			}
+		}
+
+		// TODO 检测视频宽高及时长
 	}
 
 	// 根据文件内容生成魔法变量
@@ -97,6 +135,7 @@ func (s *UploadController) Upload(ctx iris.Context) {
 		callbackBody := magicVariable.ApplyMagicVariables(decodedPutPolicy.PutPolicy.CallbackBody)
 
 		responseBody, err := requestCallback(decodedPutPolicy.PutPolicy.CallbackUrl, callbackBody)
+		// TODO 需要处理 callbackUrl 端返回非 200 的情况
 		if err != nil {
 			ctx.Application().Logger().Warn(err.Error())
 			throwError(utils.StatusCallbackFailed, "Callback Failed, "+err.Error(), ctx)
@@ -157,10 +196,28 @@ func requestCallback(callbackUrl string, callbackBody string) (responseBody stri
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-	}
 
 	fmt.Println(string(body))
 	responseBody = string(body)
+	return
+}
+
+// 写入上传文件到临时文件，并返回临时文件的绝对路径
+func writeTmpFile(file multipart.File, cid string, ext string) (path string, err error) {
+	tmpDir := utils.GetTmpDir()
+	path = tmpDir + "/" + cid + ext
+
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return
+	}
+
+	dst, err := os.Create(path)
+	if err != nil {
+		return
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, file)
 	return
 }
