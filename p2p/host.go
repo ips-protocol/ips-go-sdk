@@ -6,14 +6,14 @@ import (
 	"encoding/base64"
 	"strconv"
 
-	ci "github.com/libp2p/go-libp2p-crypto"
 	"github.com/ipfs/go-datastore"
+	ci "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/go-ipfs/commands"
-	"github.com/ipweb-group/go-ipws-config"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/repo"
+	"github.com/ipweb-group/go-ipws-config"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/utils/netools"
 )

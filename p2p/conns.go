@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
+	ipfsaddr "github.com/ipfs/go-ipfs-addr"
 	"github.com/ipfs/go-ipfs/p2p"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
-	protocol "github.com/libp2p/go-libp2p-protocol"
-	ipfsaddr "github.com/ipfs/go-ipfs-addr"
 )
 
 var resolveTimeout = 10 * time.Second

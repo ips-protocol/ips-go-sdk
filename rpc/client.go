@@ -2,8 +2,10 @@ package rpc
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"math/rand"
 	"strconv"
@@ -77,7 +79,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	}
 	cli.BlockDownloadWorkers = cfg.BlockDownloadWorkers
 
-	pubKey, err := conf.GetWalletPubKey()
+	pubKey, err := GetWalletPubKey()
 	if err != nil {
 		return
 	}
@@ -279,4 +281,21 @@ func (c *Client) P2PClose(port int, peerId string) error {
 
 func (c *Client) P2PCloseAll() error {
 	return p2p.Close(c.IpfsNode.P2P, true, "", "", "")
+}
+
+func GetWalletPubKey() (pubKey string, err error) {
+	privateKey, err := crypto.HexToECDSA(conf.WalletKey)
+	if err != nil {
+		return "", err
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", errors.New("error casting public key to ECDSA")
+
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	return fmt.Sprintf("%x", fromAddress), nil
 }

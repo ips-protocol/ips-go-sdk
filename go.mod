@@ -14,6 +14,8 @@ require (
 	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a // indirect
 	github.com/flosch/pongo2 v0.0.0-20190707114632-bbf5a6c351f4 // indirect
 	github.com/gavv/monotime v0.0.0-20190418164738-30dba4353424 // indirect
+	github.com/go-redis/redis v6.15.3+incompatible
+	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/ipfs/go-cid v0.0.2
@@ -59,6 +61,10 @@ require (
 	github.com/yudai/gojsondiff v1.0.0 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
+	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
+	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80 // indirect
+	golang.org/x/sys v0.0.0-20190726091711-fc99dfbffb4e // indirect
+	golang.org/x/tools v0.0.0-20190728063539-fc6e2057e7f6 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
 )

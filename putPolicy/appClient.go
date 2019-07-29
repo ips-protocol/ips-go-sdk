@@ -50,6 +50,8 @@ func (client *AppClient) MakeWithJsonString(json string) string {
 // 解码上传策略字符串，并得到解码后的对象。解码失败或签名错误时返回 error
 //
 func DecodePutPolicyString(policy string) (DecodedPutPolicy, error) {
+	// 移除 policy 前后的空格、换行等空文本
+	policy = strings.TrimSpace(policy)
 
 	// 1. 拆分策略字符串，分离出 AccessKey、签名和编码后的策略内容
 	splitPolicy := strings.SplitN(policy, ":", 3)
