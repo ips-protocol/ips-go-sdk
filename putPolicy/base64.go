@@ -16,7 +16,7 @@ func UrlSafeBase64Encode(src string) string {
 func UrlSafeBase64Decode(src string) string {
 	ret, err := base64.URLEncoding.DecodeString(src)
 	if err != nil {
-		return ""
+		return string(ret)
 	}
 
 	return string(ret)
