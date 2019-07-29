@@ -68,8 +68,13 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	}
 
 	err = c.upload(fhs, meta)
-	if err != nil {
-		err = c.DeleteFile(cid)
+	if err == nil {
+		return
+	}
+
+	err1 := c.DeleteFile(cid)
+	if err1 != nil {
+		err = err1
 	}
 	return
 }
