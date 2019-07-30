@@ -23,15 +23,20 @@ type Config struct {
 	ECConfig
 }
 
+type ExternalConfig struct {
+	Ffmpeg string `json:"ffmpeg"`
+}
+
 /**
  * 服务器配置
  */
 type ServerConfig struct {
-	ServerWriteTimeoutInSecond int         `json:"server_write_timeout_in_second"`
-	ServerReadTimeoutInSecond  int         `json:"server_read_timeout_in_second"`
-	ServerHost                 string      `json:"server_host"`
-	NodeConf                   Config      `json:"node_conf"`
-	RedisConfig                RedisConfig `json:"redis_config"`
+	ServerWriteTimeoutInSecond int            `json:"server_write_timeout_in_second"`
+	ServerReadTimeoutInSecond  int            `json:"server_read_timeout_in_second"`
+	ServerHost                 string         `json:"server_host"`
+	NodeConf                   Config         `json:"node_conf"`
+	RedisConfig                RedisConfig    `json:"redis_config"`
+	ExternalConfig             ExternalConfig `json:"external"`
 }
 
 /**

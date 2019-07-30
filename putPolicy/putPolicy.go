@@ -6,11 +6,13 @@ import (
 
 type PutPolicy struct {
 	Deadline int32 `json:"deadline"`
-	//ReturnBody   string `json:"returnBody"`
-	EndUser      string `json:"endUser,omitempty"`
-	CallbackUrl  string `json:"callbackUrl,omitempty"`
-	CallbackBody string `json:"callbackBody,omitempty"`
-	FSizeLimit   int32  `json:"fSizeLimit,omitempty"`
+	//ReturnBody          string `json:"returnBody"`
+	EndUser             string `json:"endUser,omitempty"`
+	CallbackUrl         string `json:"callbackUrl,omitempty"`
+	CallbackBody        string `json:"callbackBody,omitempty"`
+	FSizeLimit          int32  `json:"fSizeLimit,omitempty"`
+	PersistentOps       string `json:"persistentOps,omitempty"`
+	PersistentNotifyUrl string `json:"persistentNotifyUrl,omitempty"`
 }
 
 //
