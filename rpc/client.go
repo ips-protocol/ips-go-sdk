@@ -175,11 +175,14 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 
 	cli = shell.NewShell(url)
 	cli.SetTimeout(c.NodeRequestTimeout)
-	pinfo, err := cli.ID()
+	info, err := cli.ID()
 	if err != nil {
 		c.P2PClose(0, peerId)
+		fmt.Println("bad peer: ", peerId, " err: ", err)
+		return
 	}
-	fmt.Printf("info: %+v", pinfo)
+
+	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
 
 	return
 }
@@ -230,8 +233,6 @@ func (c *Client) refreshNodes() error {
 
 			cli, err := c.NewIpfsClient(id)
 			if err != nil {
-				fmt.Println("bad peer: ", id, err)
-
 				c.IpfsUnavailableClientsMux.Lock()
 				c.IpfsUnavailableClients[id] = cli
 				c.IpfsUnavailableClientsMux.Unlock()
@@ -240,7 +241,6 @@ func (c *Client) refreshNodes() error {
 				return
 			}
 
-			fmt.Println("p2p peer: ", id)
 			c.IpfsClientsMux.Lock()
 			c.IpfsClients[id] = cli
 			c.IpfsClientsMux.Unlock()
