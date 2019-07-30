@@ -25,6 +25,9 @@ func main() {
 		panic(err)
 	}
 
+	// 启动转换器线程
+	go persistent.ConvertMediaJob()
+
 	// 初始化 Web 服务器
 	app := iris.Default()
 
@@ -35,9 +38,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	// 启动转换器线程
-	go persistent.ConvertMediaJob()
 }
 
 // 构建路由

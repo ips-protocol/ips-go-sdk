@@ -103,7 +103,7 @@ func (s *UploadController) Upload(ctx iris.Context) {
 			throwError(utils.StatusCallbackFailed, "Callback Failed, "+err.Error(), ctx)
 			return
 		}
-		fmt.Printf("[DEBUG] Callback to %s responds %s", decodedPutPolicy.PutPolicy.CallbackUrl, responseBody)
+		fmt.Printf("[DEBUG] Callback to %s responds %s \n", decodedPutPolicy.PutPolicy.CallbackUrl, responseBody)
 
 		ctx.Header("Content-Type", "application/json; charset=UTF-8")
 		_, _ = ctx.WriteString(responseBody)

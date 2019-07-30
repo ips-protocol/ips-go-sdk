@@ -44,7 +44,7 @@ func (h *Task) CheckAndQueue() (shouldRemoveTmpFile bool, err error) {
 		if match, _ := regexp.MatchString("video/.*", h.MediaInfo.MimeType); match {
 			h.queueVideo()
 			shouldRemoveTmpFile = false
-			fmt.Printf("[INFO] Video file is queued to redis: %s", h.FilePath)
+			fmt.Printf("[INFO] Video file is queued to redis: %s \n", h.FilePath)
 		}
 	}
 

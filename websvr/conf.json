@@ -13,7 +13,7 @@
   },
   "redis_config": {
     "addr": "localhost:6379",
-    "password": "vQPLNcDUR1Z7Vnm93GTI0g6l",
+    "password": "",
     "db": 0
   },
   "external": {
