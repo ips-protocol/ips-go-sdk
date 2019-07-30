@@ -49,7 +49,8 @@ func convertMedia(rpcClient *rpc.Client) {
 	// 启动转换任务
 	inputFilePath := task.FilePath
 	outputFilePath := dir + filename + "-converted" + ext
-	command := fmt.Sprintf("ffmpeg -stats -y -i %s -c:v libx264 -c:a libmp3lame %s", inputFilePath, outputFilePath)
+	ffmpeg := conf.GetConfig().ExternalConfig.Ffmpeg
+	command := fmt.Sprintf("%s -stats -y -i %s -c:v libx264 -c:a libmp3lame %s", ffmpeg, inputFilePath, outputFilePath)
 
 	fmt.Printf("[INFO] Start ffmpeg converter, command is %s \n", command)
 

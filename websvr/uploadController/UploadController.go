@@ -155,6 +155,7 @@ func (s *UploadController) Upload(ctx iris.Context) {
 }
 
 func throwError(statusCode int, error string, ctx iris.Context) {
+	ctx.Application().Logger().Error(error)
 	ctx.StatusCode(statusCode)
 	_, _ = ctx.JSON(iris.Map{
 		"error": error,

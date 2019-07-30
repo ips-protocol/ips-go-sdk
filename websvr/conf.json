@@ -13,7 +13,10 @@
   },
   "redis_config": {
     "addr": "localhost:6379",
-    "password": "",
+    "password": "vQPLNcDUR1Z7Vnm93GTI0g6l",
     "db": 0
+  },
+  "external": {
+    "ffmpeg": "docker rum --rm -t -v $PWD:$PWD -w $PWD jrottenberg/ffmpeg:4.1-ubuntu"
   }
 }
