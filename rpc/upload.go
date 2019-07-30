@@ -118,7 +118,7 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			retry := 0
 
 		lazyTry:
-			nodeIdx := rand.Int() % len(nodes)
+			nodeIdx := rand.Intn(len(nodes))
 			node := nodes[nodeIdx]
 
 			mr := bytes.NewBuffer(meta.Encode(id))
