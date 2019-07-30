@@ -9,13 +9,14 @@ import (
  * 魔法变量
  */
 type MagicVariable struct {
-	FName       string `json:"fname"`
-	FSize       int64  `json:"fsize"`
-	MimeType    string `json:"mimeType"`
-	EndUser     string `json:"endUser"`
-	Hash        string `json:"hash"`
-	ImageWidth  int    `json:"imageWidth"`
-	ImageHeight int    `json:"imageHeight"`
+	FName    string `json:"fname"`
+	FSize    int64  `json:"fsize"`
+	MimeType string `json:"mimeType"`
+	EndUser  string `json:"endUser"`
+	Hash     string `json:"hash"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	Duration string `json:"duration"`
 }
 
 /**
@@ -29,8 +30,9 @@ func (variables *MagicVariable) ApplyMagicVariables(returnBody string) (ret stri
 	ret = strings.Replace(ret, "$(mimeType)", variables.MimeType, -1)
 	ret = strings.Replace(ret, "$(endUser)", variables.EndUser, -1)
 	ret = strings.Replace(ret, "$(hash)", variables.Hash, -1)
-	ret = strings.Replace(ret, "$(imageWidth)", strconv.Itoa(variables.ImageWidth), -1)
-	ret = strings.Replace(ret, "$(imageHeight)", strconv.Itoa(variables.ImageHeight), -1)
+	ret = strings.Replace(ret, "$(width)", strconv.Itoa(variables.Width), -1)
+	ret = strings.Replace(ret, "$(height)", strconv.Itoa(variables.Height), -1)
+	ret = strings.Replace(ret, "$(duration)", variables.Duration, -1)
 
 	return
 }

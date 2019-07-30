@@ -2,6 +2,7 @@ package putPolicy
 
 import (
 	"encoding/json"
+	"github.com/ipweb-group/go-sdk/utils"
 )
 
 type PutPolicy struct {
@@ -25,4 +26,12 @@ func (p *PutPolicy) ToJSON() (string, error) {
 	}
 
 	return string(str), nil
+}
+
+// 执行回调并返回回调响应内容
+func (p *PutPolicy) ExecCallback(variable MagicVariable) (responseBody string, err error) {
+	callbackBody := variable.ApplyMagicVariables(p.CallbackBody)
+
+	responseBody, err = utils.RequestPost(p.CallbackUrl, callbackBody, utils.RequestContentTypeFormUrlencoded)
+	return
 }

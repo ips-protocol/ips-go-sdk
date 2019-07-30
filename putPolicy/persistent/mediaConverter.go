@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/rpc"
-	"github.com/kataras/iris"
-	"io/ioutil"
-	"net/http"
+	"github.com/ipweb-group/go-sdk/utils"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -46,20 +43,23 @@ func convertMedia(rpcClient *rpc.Client) {
 
 	dir, filename, ext := parseFilePath(task.FilePath)
 
+	// TODO 判断如果视频是 h264 格式的话，将不再进行转换，而是直接回调成功
+
 	// 启动转换任务
 	inputFilePath := task.FilePath
 	outputFilePath := dir + filename + "-converted" + ext
 	ffmpeg := conf.GetConfig().ExternalConfig.Ffmpeg
-	command := fmt.Sprintf("%s -stats -y -i %s -c:v libx264 -c:a libmp3lame %s", ffmpeg, inputFilePath, outputFilePath)
+	command := fmt.Sprintf("%s -stats -y -hide_banner -i %s -c:v libx264 -c:a libmp3lame %s", ffmpeg, inputFilePath, outputFilePath)
 
 	fmt.Printf("[INFO] Start ffmpeg converter, command is %s \n", command)
 
-	result, err := execCommand(command)
+	result, err := utils.ExecCommand(command)
 	if err != nil {
 		// 转换失败后，把失败的任务插入到失败的 Hash 表中
-		fmt.Printf("[INFO] Convert task failed, cid is %s \n", task.Cid)
+		fmt.Printf("[INFO] Convert task failed [%v] \n", err)
 		AddFailedTask(task, result)
 	} else {
+		fmt.Printf("%s \n", result)
 		fmt.Println("[INFO] Convert completed")
 	}
 
@@ -113,24 +113,12 @@ func convertMedia(rpcClient *rpc.Client) {
 		requestBody.Desc = err.Error()
 	}
 
-	_, _ = requestCallback(task.PersistentNotifyUrl, requestBody)
-}
-
-// 执行命令
-// 执行失败时返回 err
-// 成功时返回对应的控制台输出
-func execCommand(commandName string) (result string, err error) {
-	//函数返回一个*Cmd，用于使用给出的参数执行name指定的程序
-	cmd := exec.Command("/bin/bash", "-c", commandName)
-
-	bytes, err := cmd.CombinedOutput()
+	stringContent, _ := json.Marshal(requestBody)
+	responseBody, err := utils.RequestPost(task.PersistentNotifyUrl, string(stringContent), utils.RequestContentTypeJson)
 	if err != nil {
-		return
+		fmt.Printf("[WARN] Callback failed in persistent process, %v \n", err)
 	}
-
-	fmt.Printf("%s", bytes)
-	result = string(bytes)
-	return
+	fmt.Printf("[DEBUG] Callback in persistent process responds: %s", responseBody)
 }
 
 // 分割路径字符串为目录、文件名、文件后缀三部分
@@ -139,35 +127,5 @@ func parseFilePath(filePath string) (dir string, filename string, ext string) {
 	base := path.Base(filePath)
 	ext = path.Ext(base)
 	filename = strings.TrimSuffix(base, ext)
-	return
-}
-
-// FIXME 该方法与 UploadController 中的方法高度重复，需要重构
-func requestCallback(callbackUrl string, callbackBody NotifyRequestBody) (responseBody string, err error) {
-	client := &http.Client{
-		Timeout: time.Second * 30, // 默认请求超时时间为 30 秒
-	}
-
-	stringContent, _ := json.Marshal(callbackBody)
-
-	req, err := http.NewRequest(iris.MethodPost, callbackUrl, strings.NewReader(string(stringContent)))
-	if err != nil {
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "IPWeb SDK")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	fmt.Println(string(body))
-	responseBody = string(body)
 	return
 }

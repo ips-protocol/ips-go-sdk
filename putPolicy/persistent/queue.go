@@ -19,7 +19,7 @@ const KeyFailedMap = "IPWEB:videoConverter:failed"
 const KeyTaskPrefix = "IPWEB:task:"
 
 // 写入视频任务到 Redis 队列
-func AddTaskToUnprocessedQueue(task *VideoTask) {
+func AddTaskToUnprocessedQueue(task *Task) {
 	redisClient := redis.GetClient()
 	redisClient.RPush(KeyUnprocessedQueue, task.Cid)
 
@@ -28,7 +28,7 @@ func AddTaskToUnprocessedQueue(task *VideoTask) {
 }
 
 // 获取第一个未处理的任务
-func GetFirstUnprocessedTask() *VideoTask {
+func GetFirstUnprocessedTask() *Task {
 	redisClient := redis.GetClient()
 	// 获取第一个未处理任务的 CID
 	cid, err := redisClient.LPop(KeyUnprocessedQueue).Result()
@@ -43,27 +43,27 @@ func GetFirstUnprocessedTask() *VideoTask {
 		return nil
 	}
 
-	return UnmarshalVideoTask(val)
+	return UnmarshalTask(val)
 }
 
 // 把任务添加到处理中的 Hash 表中
-func AddTaskToProcessingMap(task *VideoTask) {
+func AddTaskToProcessingMap(task *Task) {
 	redisClient := redis.GetClient()
 	redisClient.HSet(KeyProcessingMap, task.Cid, time.Now().Unix())
 }
 
 // 把失败的任务添加到失败的 Hash 表中，并保存失败时的控制台输出
-func AddFailedTask(task *VideoTask, stdoutContent string) {
+func AddFailedTask(task *Task, stdoutContent string) {
 	redisClient := redis.GetClient()
 	redisClient.HSet(KeyFailedMap, task.Cid, stdoutContent)
 }
 
 // 移除正在执行的任务
-func RemoveProcessingTask(task *VideoTask) {
+func RemoveProcessingTask(task *Task) {
 	redis.GetClient().HDel(KeyProcessingMap, task.Cid)
 }
 
 // 移除任务
-func RemoveTask(task *VideoTask) {
+func RemoveTask(task *Task) {
 	redis.GetClient().Del(KeyTaskPrefix + task.Cid)
 }

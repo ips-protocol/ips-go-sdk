@@ -17,6 +17,7 @@
     "db": 0
   },
   "external": {
-    "ffmpeg": "docker rum --rm -t -v $PWD:$PWD -w $PWD jrottenberg/ffmpeg:4.1-ubuntu"
+    "ffmpeg": "docker run --rm -t -v $PWD:$PWD -w $PWD jrottenberg/ffmpeg:4.1-ubuntu",
+    "ffprobe": "docker run --rm -t -v $PWD:$PWD -w $PWD --entrypoint ffprobe jrottenberg/ffmpeg:4.1-ubuntu"
   }
 }

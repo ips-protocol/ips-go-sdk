@@ -24,7 +24,8 @@ type Config struct {
 }
 
 type ExternalConfig struct {
-	Ffmpeg string `json:"ffmpeg"`
+	Ffmpeg  string `json:"ffmpeg"`
+	Ffprobe string `json:"ffprobe"`
 }
 
 /**
