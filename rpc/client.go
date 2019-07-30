@@ -270,7 +270,7 @@ func getRandonNode(nodes []NodeClient) NodeClient {
 func (c *Client) P2PForward(port int, peerId string) error {
 	listenOpt := "/ip4/127.0.0.1/tcp/" + strconv.Itoa(port)
 	targetOpt := "/ipfs/" + peerId
-	return p2p.Forward(c.IpfsNode.P2P, P2pProtocl, listenOpt, targetOpt)
+	return p2p.Forward(c.IpfsNode.Context(), c.IpfsNode.P2P, P2pProtocl, listenOpt, targetOpt)
 }
 
 func (c *Client) P2PClose(port int, peerId string) error {

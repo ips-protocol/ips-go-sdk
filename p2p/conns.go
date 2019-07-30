@@ -14,7 +14,7 @@ import (
 
 var resolveTimeout = 10 * time.Second
 
-func Forward(p *p2p.P2P, protoOpt, listenOpt, targetOpt string) error {
+func Forward(ctx context.Context, p *p2p.P2P, protoOpt, listenOpt, targetOpt string) error {
 
 	proto := protocol.ID(protoOpt)
 
@@ -28,7 +28,7 @@ func Forward(p *p2p.P2P, protoOpt, listenOpt, targetOpt string) error {
 		return err
 	}
 
-	_, err = p.ForwardLocal(context.Background(), targets[0].ID(), proto, listen)
+	_, err = p.ForwardLocal(ctx, targets[0].ID(), proto, listen)
 	return err
 }
 
