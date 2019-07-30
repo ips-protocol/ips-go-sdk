@@ -2,7 +2,6 @@ package uploadController
 
 import (
 	"fmt"
-	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/putPolicy"
 	"github.com/ipweb-group/go-sdk/putPolicy/mediaHandler"
 	"github.com/ipweb-group/go-sdk/putPolicy/persistent"
@@ -16,18 +15,6 @@ import (
 
 type UploadController struct {
 	Node *rpc.Client
-}
-
-func New() UploadController {
-	config := conf.GetConfig().NodeConf
-	cli, err := rpc.NewClient(config)
-	if err != nil {
-		panic(err)
-	}
-
-	return UploadController{
-		Node: cli,
-	}
 }
 
 /**
