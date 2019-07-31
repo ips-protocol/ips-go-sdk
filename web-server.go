@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/putPolicy"
 	"github.com/ipweb-group/go-sdk/putPolicy/persistent"
 	"github.com/ipweb-group/go-sdk/rpc"
-	"github.com/ipweb-group/go-sdk/websvr/uploadController"
+	"github.com/ipweb-group/go-sdk/utils/redis"
+	"github.com/ipweb-group/go-sdk/websvr/controllers"
 	"github.com/kataras/iris"
+	"time"
 )
 
 // 最大允许上传的文件大小：500MB
@@ -19,8 +23,7 @@ func main() {
 	cfg := conf.GetConfig()
 
 	// 初始化 RPC 客户端
-	// FIXME 将 rpcClient 改为单例，并通过工厂方法获取
-	rpcClient, err := rpc.NewClient(cfg.NodeConf)
+	rpcClient, err := rpc.GetClientInstance()
 	if err != nil {
 		panic(err)
 	}
@@ -32,20 +35,41 @@ func main() {
 	app := iris.Default()
 
 	// 构建路由
-	routers(app, rpcClient)
+	routers(app)
 
-	err = app.Run(iris.Addr(cfg.ServerHost))
-	if err != nil {
-		panic(err)
-	}
+	// 平滑关闭服务
+	iris.RegisterOnInterrupt(func() {
+		timeout := 15 * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		// 关闭 RPC 客户端
+		err := rpcClient.Close()
+		if err != nil {
+			fmt.Printf("[WARN] Close RPC Client failed, %v \n", err)
+		}
+
+		// 关闭 Redis 连接
+		err = redis.GetClient().Close()
+		if err != nil {
+			fmt.Printf("[WARN] Close redis connection failed, %v \n", err)
+		}
+
+		_ = app.Shutdown(ctx)
+	})
+
+	_ = app.Run(iris.Addr(cfg.ServerHost), iris.WithoutInterruptHandler)
 }
 
 // 构建路由
-func routers(app *iris.Application, rpcClient *rpc.Client) {
+func routers(app *iris.Application) {
 	// Version 1
 	v1 := app.Party("/v1")
 	{
-		controller := uploadController.UploadController{Node: rpcClient}
-		v1.Post("/upload", iris.LimitRequestBodySize(MaxFileSize), controller.Upload)
+		uploadController := controllers.UploadController{}
+		v1.Post("/upload", iris.LimitRequestBodySize(MaxFileSize), uploadController.Upload)
+
+		downloadController := controllers.DownloadController{}
+		v1.Get("/file/{cid:string}", downloadController.StreamedDownload)
 	}
 }

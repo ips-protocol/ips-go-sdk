@@ -1,4 +1,4 @@
-package uploadController
+package controllers
 
 import (
 	"fmt"
@@ -13,9 +13,7 @@ import (
 	"path"
 )
 
-type UploadController struct {
-	Node *rpc.Client
-}
+type UploadController struct{}
 
 /**
  * 文件上传
@@ -50,7 +48,8 @@ func (s *UploadController) Upload(ctx iris.Context) {
 	// TODO 根据 EndUser 参数进行扣款。扣款操作直接记录在链上
 
 	// 上传文件到 IPFS
-	cid, err := s.Node.Upload(file, fileHeader.Filename, fileHeader.Size)
+	rpcClient, _ := rpc.GetClientInstance()
+	cid, err := rpcClient.Upload(file, fileHeader.Filename, fileHeader.Size)
 	if err != nil {
 		throwError(iris.StatusInternalServerError, "Failed to Upload, "+err.Error(), ctx)
 		return
