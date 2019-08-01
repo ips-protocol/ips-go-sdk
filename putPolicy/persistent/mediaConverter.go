@@ -21,7 +21,7 @@ func ConvertMediaJob() {
 	// 每隔一段时间检查一次队列，并在有任务时执行任务
 	for {
 		time.Sleep(1 * time.Second)
-		convertMedia()
+		go convertMedia()
 	}
 }
 
@@ -45,6 +45,7 @@ func convertMedia() {
 
 	// 判断如果视频是 h264 格式的话，将不再进行转换，而是直接回调成功
 	if task.MediaInfo.Type == "h264" {
+		fmt.Println("[INFO] Video is of type h264, no need to be converted")
 		needConvert = false
 	}
 
@@ -106,30 +107,32 @@ func convertMedia() {
 	}
 
 	// 完成后回调（无论成功还是失败）
-	requestBody := NotifyRequestBody{
-		Hash:          task.Cid,
-		Code:          CodeSuccess,
-		Desc:          "",
-		PersistentOps: task.PersistentOps,
-		DstHash:       dstCid,
-	}
+	go func() {
+		requestBody := NotifyRequestBody{
+			Hash:          task.Cid,
+			Code:          CodeSuccess,
+			Desc:          "",
+			PersistentOps: task.PersistentOps,
+			DstHash:       dstCid,
+		}
 
-	if err != nil {
-		requestBody.Code = CodeFailed
-		requestBody.Desc = err.Error()
-	}
+		if err != nil {
+			requestBody.Code = CodeFailed
+			requestBody.Desc = err.Error()
+		}
 
-	// 如果无需转换，直接设置转换后的 hash 为原文件的 CID
-	if !needConvert {
-		requestBody.DstHash = task.Cid
-	}
+		// 如果无需转换，直接设置转换后的 hash 为原文件的 CID
+		if !needConvert {
+			requestBody.DstHash = task.Cid
+		}
 
-	stringContent, _ := json.Marshal(requestBody)
-	responseBody, err := utils.RequestPost(task.PersistentNotifyUrl, string(stringContent), utils.RequestContentTypeJson)
-	if err != nil {
-		fmt.Printf("[WARN] Callback failed in persistent process, %v \n", err)
-	}
-	fmt.Printf("[DEBUG] Callback in persistent process responds: %s", responseBody)
+		stringContent, _ := json.Marshal(requestBody)
+		responseBody, err := utils.RequestPost(task.PersistentNotifyUrl, string(stringContent), utils.RequestContentTypeJson)
+		if err != nil {
+			fmt.Printf("[WARN] Callback failed in persistent process, %v \n", err)
+		}
+		fmt.Printf("[DEBUG] Callback in persistent process responds: %s", responseBody)
+	}()
 }
 
 // 分割路径字符串为目录、文件名、文件后缀三部分
