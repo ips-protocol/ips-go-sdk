@@ -15,6 +15,10 @@ func FilesRm(s *shell.Shell, path string, recursive, force bool) error {
 }
 
 func (c *Client) Remove(fHash string) error {
+	return c.RemoveByClientKey(c.Client.GetClientKey(), fHash)
+}
+
+func (c *Client) RemoveByClientKey(clientKey string, fHash string) error {
 	blocksInfo, err := c.GetBlocksInfo(fHash)
 	if err != nil {
 		return err
@@ -32,7 +36,7 @@ func (c *Client) Remove(fHash string) error {
 		}
 	}
 
-	err = c.DeleteFile(fHash)
+	err = c.DeleteFileByClientKey(clientKey, fHash)
 	if err != nil && err.Error() == ErrContractNotFound.Error() {
 		err = ErrContractNotFound
 	}

@@ -17,6 +17,10 @@ import (
 )
 
 func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
+	return c.UploadWithPathByClientKey(c.Client.GetClientKey(), fpath)
+}
+
+func (c *Client) UploadWithPathByClientKey(clientKey string, fpath string) (cid string, err error) {
 	fname := path.Base(fpath)
 	fh, err := os.Open(fpath)
 	if err != nil {
@@ -29,11 +33,15 @@ func (c *Client) UploadWithPath(fpath string) (cid string, err error) {
 		return
 	}
 
-	cid, err = c.Upload(fh, fname, fi.Size())
+	cid, err = c.UploadByClientKey(clientKey, fh, fname, fi.Size())
 	return
 }
 
 func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, err error) {
+	return c.UploadByClientKey(c.Client.GetClientKey(), rdr, fname, fsize)
+}
+
+func (c *Client) UploadByClientKey(clientKey string, rdr io.Reader, fname string, fsize int64) (cid string, err error) {
 	dataShards, parShards, shardSize := file.BlockCount(fsize)
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
@@ -41,7 +49,11 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	}
 
 	h := sha256.New()
-	_, err = h.Write([]byte(c.WalletPubKey))
+	pubKey, err := GetWalletPubKey(clientKey)
+	if err != nil {
+		return
+	}
+	_, err = h.Write([]byte(pubKey))
 	if err != nil {
 		return
 	}
@@ -58,10 +70,10 @@ func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, e
 	}
 
 	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
-	meta.WalletPubKey = c.WalletPubKey
+	meta.WalletPubKey = pubKey
 	shardSize += int64(len(meta.Encode(0)))
 	shards := dataShards + parShards
-	_, err = c.NewUploadJob(cid, fsize, shards, shardSize)
+	_, err = c.NewUploadJobByClientKey(clientKey, cid, fsize, shards, shardSize)
 	if err != nil {
 		log.Println("NewUploadJob Error:", err)
 		return

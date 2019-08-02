@@ -79,7 +79,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	}
 	cli.BlockDownloadWorkers = cfg.BlockDownloadWorkers
 
-	pubKey, err := GetWalletPubKey()
+	pubKey, err := GetWalletPubKey(cfg.ContractConf.ClientKeyHex)
 	if err != nil {
 		return
 	}
@@ -257,10 +257,6 @@ func (c *Client) refreshNodes() error {
 	return nil
 }
 
-func (c *Client) addClient() {
-
-}
-
 func getRandonNode(nodes []NodeClient) NodeClient {
 	rand.Seed(time.Now().UnixNano())
 	i := rand.Intn(len(nodes))
@@ -283,16 +279,8 @@ func (c *Client) P2PCloseAll() error {
 	return p2p.Close(c.IpfsNode.P2P, true, "", "", "")
 }
 
-func (c *Client) SetClientKeyHex(clientKeyHex string) error {
-	if c.Client == nil {
-		fmt.Errorf("not founnd storage client")
-	}
-	c.Client.SetClientKeyHex(clientKeyHex)
-	return nil
-}
-
-func GetWalletPubKey() (pubKey string, err error) {
-	privateKey, err := crypto.HexToECDSA(conf.WalletKey)
+func GetWalletPubKey(walletKey string) (pubKey string, err error) {
+	privateKey, err := crypto.HexToECDSA(walletKey)
 	if err != nil {
 		return "", err
 	}

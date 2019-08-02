@@ -41,8 +41,8 @@ func NewClient(cfg conf.ContractConfig) (cli *Client, err error) {
 	//cli.nonce = nonce
 	return
 }
-func (c *Client) NewKeyedTransactor() *bind.TransactOpts {
-	transactor := bind.NewKeyedTransactor(c.GetClientKey())
+func (c *Client) NewKeyedTransactor(clientKey string) *bind.TransactOpts {
+	transactor := bind.NewKeyedTransactor(c.PrivateKey(clientKey))
 	return transactor
 }
 
@@ -58,18 +58,22 @@ func (c *Client) GetStorageAccount(fileHash string) (stgAccountAddr common.Addre
 }
 
 func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSize int64) (job *contract.StorageDepositNewUploadJob, err error) {
+	return c.NewUploadJobByClientKey(c.GetClientKey(), fileHash, fsize, shards, shardSize)
+}
+
+func (c *Client) NewUploadJobByClientKey(clientKey string, fileHash string, fsize int64, shards int, shardSize int64) (job *contract.StorageDepositNewUploadJob, err error) {
 	storageDeposit, err := contract.NewStorageDeposit(storageDepositContractAddr, c)
 	if err != nil {
 		return
 	}
-	transactor := c.NewKeyedTransactor()
+	transactor := c.NewKeyedTransactor(clientKey)
 
 	bytePrice, err := storageDeposit.GetBytePrice(nil)
 	if err != nil {
 		return
 	}
 
-	c.GetClientKey()
+	c.PrivateKey(clientKey)
 	transactor.GasPrice = big.NewInt(0)
 
 	//c.nonceMux.Lock()
@@ -111,13 +115,17 @@ func (c *Client) NewUploadJob(fileHash string, fsize int64, shards int, shardSiz
 }
 
 func (c *Client) DeleteFile(fileHash string) error {
+	return c.DeleteFileByClientKey(c.GetClientKey(), fileHash)
+}
+
+func (c *Client) DeleteFileByClientKey(clientKey string, fileHash string) error {
 	storageDeposit, err := contract.NewStorageDeposit(storageDepositContractAddr, c)
 	if err != nil {
 		return err
 	}
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
-	transactor := c.NewKeyedTransactor()
+	transactor := c.NewKeyedTransactor(clientKey)
 	tx, err := storageDeposit.DeleteFile(transactor, fileAddress)
 	if err != nil {
 		return err
@@ -182,8 +190,4 @@ func (c *Client) waitTransactionReceipt(ctx context.Context, tx common.Hash) (re
 		return
 	}
 	return
-}
-
-func (c *Client) SetClientKeyHex(clientKeyHex string) {
-	c.SetClientKey(clientKeyHex)
 }

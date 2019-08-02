@@ -6,8 +6,6 @@ import (
 	"os"
 )
 
-const WalletKey = "5BEE78415C36E7DC7C7652957157C3E74011E1E8A8A344BD738A17E64DE37988"
-
 type ECConfig struct {
 	DataShards int `json:"data_shards"`
 	ParShards  int `json:"par_shards"`

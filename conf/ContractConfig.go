@@ -12,12 +12,12 @@ type ContractConfig struct {
 	ContractNodeAddr string `json:"contract_node_addr"`
 }
 
-func (cfg ContractConfig) SetClientKey(clientKeyHex string) {
-	cfg.ClientKeyHex = clientKeyHex
+func (cfg ContractConfig) GetClientKey() string {
+	return cfg.ClientKeyHex
 }
 
-func (cfg ContractConfig) GetClientKey() *ecdsa.PrivateKey {
-	clientKey, err := crypto.HexToECDSA(cfg.ClientKeyHex)
+func (cfg ContractConfig) PrivateKey(clientKeyHex string) *ecdsa.PrivateKey {
+	clientKey, err := crypto.HexToECDSA(clientKeyHex)
 	if err != nil {
 		panic(err)
 	}
@@ -25,6 +25,11 @@ func (cfg ContractConfig) GetClientKey() *ecdsa.PrivateKey {
 }
 
 func (cfg ContractConfig) GetClientAddress() common.Address {
-	pubKey := cfg.GetClientKey().PublicKey
+	pubKey := cfg.PrivateKey(cfg.GetClientKey()).PublicKey
+	return crypto.PubkeyToAddress(pubKey)
+}
+
+func (cfg ContractConfig) PublicKey(clientKeyHex string) common.Address {
+	pubKey := cfg.PrivateKey(clientKeyHex).PublicKey
 	return crypto.PubkeyToAddress(pubKey)
 }
