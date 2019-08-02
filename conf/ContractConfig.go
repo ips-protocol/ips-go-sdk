@@ -2,6 +2,7 @@ package conf
 
 import (
 	"crypto/ecdsa"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -9,6 +10,10 @@ import (
 type ContractConfig struct {
 	ClientKeyHex     string `json:"client_key_hex"`
 	ContractNodeAddr string `json:"contract_node_addr"`
+}
+
+func (cfg ContractConfig) SetClientKey(clientKeyHex string) {
+	cfg.ClientKeyHex = clientKeyHex
 }
 
 func (cfg ContractConfig) GetClientKey() *ecdsa.PrivateKey {

@@ -212,7 +212,10 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# Binary files
 main
 main.exe
 svr
 svr.exe
+web-server
+web-server.exe

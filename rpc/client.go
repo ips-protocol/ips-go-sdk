@@ -283,6 +283,14 @@ func (c *Client) P2PCloseAll() error {
 	return p2p.Close(c.IpfsNode.P2P, true, "", "", "")
 }
 
+func (c *Client) SetClientKeyHex(clientKeyHex string) error {
+	if c.Client == nil {
+		fmt.Errorf("not founnd storage client")
+	}
+	c.Client.SetClientKeyHex(clientKeyHex)
+	return nil
+}
+
 func GetWalletPubKey() (pubKey string, err error) {
 	privateKey, err := crypto.HexToECDSA(conf.WalletKey)
 	if err != nil {

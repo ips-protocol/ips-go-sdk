@@ -183,3 +183,7 @@ func (c *Client) waitTransactionReceipt(ctx context.Context, tx common.Hash) (re
 	}
 	return
 }
+
+func (c *Client) SetClientKeyHex(clientKeyHex string) {
+	c.SetClientKey(clientKeyHex)
+}
