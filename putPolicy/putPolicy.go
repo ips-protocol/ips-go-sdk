@@ -6,9 +6,11 @@ import (
 )
 
 type PutPolicy struct {
-	Deadline int32 `json:"deadline"`
-	//ReturnBody          string `json:"returnBody"`
+	Deadline            int32  `json:"deadline"`
+	ReturnUrl           string `json:"returnUrl,omitempty"`
+	ReturnBody          string `json:"returnBody,omitempty"`
 	EndUser             string `json:"endUser,omitempty"`
+	ClientKey           string `json:"clientKey,omitempty"`
 	CallbackUrl         string `json:"callbackUrl,omitempty"`
 	CallbackBody        string `json:"callbackBody,omitempty"`
 	FSizeLimit          int32  `json:"fSizeLimit,omitempty"`
@@ -29,8 +31,8 @@ func (p *PutPolicy) ToJSON() (string, error) {
 }
 
 // 执行回调并返回回调响应内容
-func (p *PutPolicy) ExecCallback(variable MagicVariable) (responseBody string, err error) {
-	callbackBody := variable.ApplyMagicVariables(p.CallbackBody)
+func (p *PutPolicy) ExecCallback(variable MagicVariable, escapeMethod string) (responseBody string, err error) {
+	callbackBody := variable.ApplyMagicVariables(p.CallbackBody, escapeMethod)
 
 	responseBody, err = utils.RequestPost(p.CallbackUrl, callbackBody, utils.RequestContentTypeFormUrlencoded)
 	return

@@ -1,6 +1,7 @@
 package putPolicy
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -19,20 +20,41 @@ type MagicVariable struct {
 	Duration string `json:"duration"`
 }
 
+const (
+	EscapeJSON = "json" // js 转义
+	EscapeURL  = "url"  // url encode
+)
+
 /**
  * 应用魔法变量
  *
- * 替换 returnBody 中的所有魔法变量文本并返回替换后的文本
+ * 替换 returnBody 中的所有魔法变量文本并返回替换后的文本 （会对替换的值进行 URL Encode）
  */
-func (variables *MagicVariable) ApplyMagicVariables(returnBody string) (ret string) {
-	ret = strings.Replace(returnBody, "$(fname)", variables.FName, -1)
-	ret = strings.Replace(ret, "$(fsize)", strconv.FormatInt(variables.FSize, 10), -1)
-	ret = strings.Replace(ret, "$(mimeType)", variables.MimeType, -1)
-	ret = strings.Replace(ret, "$(endUser)", variables.EndUser, -1)
-	ret = strings.Replace(ret, "$(hash)", variables.Hash, -1)
-	ret = strings.Replace(ret, "$(width)", strconv.Itoa(variables.Width), -1)
-	ret = strings.Replace(ret, "$(height)", strconv.Itoa(variables.Height), -1)
-	ret = strings.Replace(ret, "$(duration)", variables.Duration, -1)
+func (variables *MagicVariable) ApplyMagicVariables(returnBody string, escape string) (ret string) {
+	ret = replaceStringWithUrlEncode(returnBody, "$(fname)", variables.FName, escape)
+	ret = replaceStringWithUrlEncode(ret, "$(fsize)", strconv.FormatInt(variables.FSize, 10), escape)
+	ret = replaceStringWithUrlEncode(ret, "$(mimeType)", url.QueryEscape(variables.MimeType), escape)
+	ret = replaceStringWithUrlEncode(ret, "$(endUser)", url.QueryEscape(variables.EndUser), escape)
+	ret = replaceStringWithUrlEncode(ret, "$(hash)", variables.Hash, escape)
+	ret = replaceStringWithUrlEncode(ret, "$(width)", strconv.Itoa(variables.Width), escape)
+	ret = replaceStringWithUrlEncode(ret, "$(height)", strconv.Itoa(variables.Height), escape)
+	ret = replaceStringWithUrlEncode(ret, "$(duration)", variables.Duration, escape)
 
 	return
+}
+
+// 替换字符串，同时进行 url encode 转义
+func replaceStringWithUrlEncode(inputString string, find string, replace string, escape string) string {
+	var escapedStr string
+	switch escape {
+	case EscapeJSON:
+		escapedStr = strings.ReplaceAll(replace, "\\", "\\\\")
+		escapedStr = strings.ReplaceAll(escapedStr, "\"", "\\\"")
+		break
+
+	case EscapeURL:
+		escapedStr = url.QueryEscape(replace)
+		break
+	}
+	return strings.ReplaceAll(inputString, find, escapedStr)
 }

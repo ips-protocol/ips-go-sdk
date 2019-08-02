@@ -28,36 +28,26 @@ func UnmarshalTask(str string) *Task {
 	return ret
 }
 
-// 检查持久化参数及输入文件，如果文件符合持久化操作的条件，就将任务加入到持久化队列中，
-// 否则将不会做任何处理，直接返回 "允许删除临时文件" 的标识
-func (h *Task) CheckAndQueue() (shouldRemoveTmpFile bool, err error) {
-	// 是否应该在完成后删除临时文件，默认为 true。当需要持久化操作时返回该值为 false
-	shouldRemoveTmpFile = true
-
-	// 检查持久化参数的值，如果无需持久化操作，直接返回即可
-	if h.PersistentOps == "" {
-		return
-	}
-
+// 检查任务是否需要被添加到转换队列中，如果不需要被转换，则会返回允许删除临时文件的标识
+func (h *Task) CheckShouldQueueTask() bool {
 	// 如果是要求转换视频，并且上传文件为视频类型时，启动视频转换任务
 	if h.PersistentOps == "convertVideo" {
 		if match, _ := regexp.MatchString("video/.*", h.MediaInfo.MimeType); match {
-			h.queueVideo()
-			shouldRemoveTmpFile = false
-			fmt.Printf("[INFO] Video file is queued to redis: %s \n", h.FilePath)
+			return false
 		}
 	}
 
-	return
+	return true
+}
+
+// 添加任务添加到未处理队列中
+func (h *Task) Queue() {
+	AddTaskToUnprocessedQueue(h)
+	fmt.Printf("[INFO] Video file is queued to redis: %s \n", h.FilePath)
 }
 
 // 将任务转换为 JSON 字符串（用于保存到 Redis）
 func (h *Task) ToJSON() string {
 	j, _ := json.Marshal(h)
 	return string(j)
-}
-
-// 添加视频任务到队列中
-func (h *Task) queueVideo() {
-	AddTaskToUnprocessedQueue(h)
 }

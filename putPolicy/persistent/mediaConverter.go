@@ -131,7 +131,7 @@ func convertMedia() {
 		if err != nil {
 			fmt.Printf("[WARN] Callback failed in persistent process, %v \n", err)
 		}
-		fmt.Printf("[DEBUG] Callback in persistent process responds: %s", responseBody)
+		fmt.Printf("[DEBUG] Callback in persistent process responds: %s \n", responseBody)
 	}()
 }
 

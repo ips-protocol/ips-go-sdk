@@ -10,6 +10,7 @@ import (
 	"github.com/ipweb-group/go-sdk/utils/redis"
 	"github.com/ipweb-group/go-sdk/websvr/controllers"
 	"github.com/kataras/iris"
+	irisContext "github.com/kataras/iris/context"
 	"time"
 )
 
@@ -33,6 +34,11 @@ func main() {
 
 	// 初始化 Web 服务器
 	app := iris.Default()
+
+	// 404 错误输出
+	app.OnErrorCode(iris.StatusNotFound, func(ctx irisContext.Context) {
+		_, _ = ctx.JSON(iris.Map{"error": "Document not found"})
+	})
 
 	// 构建路由
 	routers(app)
@@ -59,6 +65,8 @@ func main() {
 	})
 
 	_ = app.Run(iris.Addr(cfg.ServerHost), iris.WithoutInterruptHandler)
+
+	// app.Run(iris.AutoTLS(":443", "example.com", "admin@example.com")) 可以自动配置 Lets Encrypt 证书
 }
 
 // 构建路由

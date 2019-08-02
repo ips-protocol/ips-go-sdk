@@ -9,8 +9,11 @@ import (
 	"github.com/ipweb-group/go-sdk/utils"
 	"github.com/kataras/iris"
 	"mime"
+	"net/url"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 )
 
 type UploadController struct{}
@@ -19,6 +22,7 @@ type UploadController struct{}
  * 文件上传
  */
 func (s *UploadController) Upload(ctx iris.Context) {
+	lg := ctx.Application().Logger()
 	token := ctx.FormValue("token")
 	if len(token) == 0 {
 		throwError(iris.StatusUnprocessableEntity, "No Upload Token Specified", ctx)
@@ -31,6 +35,7 @@ func (s *UploadController) Upload(ctx iris.Context) {
 		throwError(iris.StatusInternalServerError, err.Error(), ctx)
 		return
 	}
+	policy := decodedPutPolicy.PutPolicy
 
 	// 获取表单上传的文件
 	file, fileHeader, err := ctx.FormFile("file")
@@ -45,11 +50,16 @@ func (s *UploadController) Upload(ctx iris.Context) {
 
 	// TODO 文件大小限制
 
-	// TODO 根据 EndUser 参数进行扣款。扣款操作直接记录在链上
-
 	// 上传文件到 IPFS
+	// 根据策略中有没有传 client key 来决定是使用私有账户上传还是使用公共账户上传
 	rpcClient, _ := rpc.GetClientInstance()
-	cid, err := rpcClient.Upload(file, fileHeader.Filename, fileHeader.Size)
+	var cid string
+	lg.Info("Upload client key is ", policy.ClientKey)
+	if policy.ClientKey != "" {
+		cid, err = rpcClient.UploadByClientKey(policy.ClientKey, file, fileHeader.Filename, fileHeader.Size)
+	} else {
+		cid, err = rpcClient.Upload(file, fileHeader.Filename, fileHeader.Size)
+	}
 	if err != nil {
 		throwError(iris.StatusInternalServerError, "Failed to Upload, "+err.Error(), ctx)
 		return
@@ -65,7 +75,7 @@ func (s *UploadController) Upload(ctx iris.Context) {
 		FName:    fileHeader.Filename,
 		Hash:     cid,
 		FSize:    fileHeader.Size,
-		EndUser:  decodedPutPolicy.PutPolicy.EndUser,
+		EndUser:  policy.EndUser,
 		MimeType: mimeType,
 	}
 
@@ -83,26 +93,62 @@ func (s *UploadController) Upload(ctx iris.Context) {
 	persistentTask := persistent.Task{
 		Cid:                 cid,
 		FilePath:            tmpFilePath,
-		PersistentOps:       decodedPutPolicy.PutPolicy.PersistentOps,
-		PersistentNotifyUrl: decodedPutPolicy.PutPolicy.PersistentNotifyUrl,
+		PersistentOps:       policy.PersistentOps,
+		PersistentNotifyUrl: policy.PersistentNotifyUrl,
 		MediaInfo:           mediaInfo,
 	}
-	shouldRemoveTmpFile, err := persistentTask.CheckAndQueue()
+	shouldRemoveTmpFile := persistentTask.CheckShouldQueueTask()
+
+	if !shouldRemoveTmpFile {
+		// 如果需要添加到队列中，则在当前函数结束时将任务添加到队列，以避免队列过早执行
+		defer persistentTask.Queue()
+	}
 
 	// 删除临时文件
 	if shouldRemoveTmpFile {
 		_ = os.Remove(tmpFilePath)
 	}
 
+	// 如果上传策略中指定了 returnBody，就去解析这个 returnBody。如果同时指定了 returnUrl，将会 303 跳转到该地址，
+	// 否则就直接将 returnBody 的内容显示在浏览器上
+	lg.Debug("Return body is ", policy.ReturnBody)
+	lg.Debug("Return Url is ", policy.ReturnUrl)
+	if policy.ReturnBody != "" || policy.ReturnUrl != "" {
+		returnBody := magicVariable.ApplyMagicVariables(policy.ReturnBody, putPolicy.EscapeJSON)
+
+		lg.Debug("Return body with magic variables: ", returnBody)
+
+		// 当设置了 ReturnUrl 时，将会跳转到指定的地址
+		if match, _ := regexp.MatchString("(?i)^https?://", policy.ReturnUrl); policy.ReturnUrl != "" && match {
+			var l string
+			if strings.Contains(policy.ReturnUrl, "?") {
+				l = "&"
+			} else {
+				l = "?"
+			}
+			redirectUrl := policy.ReturnUrl + l + "upload_ret=" + url.QueryEscape(returnBody)
+			lg.Info("Redirect to URL ", redirectUrl)
+
+			ctx.Redirect(redirectUrl, iris.StatusSeeOther)
+			return
+		}
+
+		// 未设置 returnUrl 时，直接返回 returnBody 的内容
+		lg.Info("No returnUrl specified or URL is invalid, will show return body content: ", returnBody)
+		ctx.Header("Content-Type", "application/json; charset=UTF-8")
+		_, _ = ctx.WriteString(returnBody)
+		return
+	}
+
 	// 如果上传策略中指定了回调地址，就异步去请求该地址
-	if decodedPutPolicy.PutPolicy.CallbackUrl != "" {
-		responseBody, err := decodedPutPolicy.PutPolicy.ExecCallback(magicVariable)
+	if policy.CallbackUrl != "" {
+		responseBody, err := policy.ExecCallback(magicVariable, putPolicy.EscapeURL)
 		if err != nil {
-			fmt.Printf("[WARN] Callback to %s failed, %v \n", decodedPutPolicy.PutPolicy.CallbackUrl, err)
+			fmt.Printf("[WARN] Callback to %s failed, %v \n", policy.CallbackUrl, err)
 			throwError(utils.StatusCallbackFailed, "Callback Failed, "+err.Error(), ctx)
 			return
 		}
-		fmt.Printf("[DEBUG] Callback to %s responds %s \n", decodedPutPolicy.PutPolicy.CallbackUrl, responseBody)
+		fmt.Printf("[DEBUG] Callback to %s responds %s \n", policy.CallbackUrl, responseBody)
 
 		ctx.Header("Content-Type", "application/json; charset=UTF-8")
 		_, _ = ctx.WriteString(responseBody)
