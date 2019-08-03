@@ -106,10 +106,10 @@ func (c *Client) StreamRead(fileHash string) (rc io.ReadCloser, metaAll metafile
 	var partSize int64 = 0
 	for i := 0; i < dataShards; i++ {
 		blockInfo := blocksInfo[i]
-		nodes, e := c.GetNodeClients(blockInfo.PeerId)
+		nodes, e := c.GetNodes(blockInfo.PeerId)
 		if e != nil {
 			err = e
-			log.Printf("GetNodeClient error: %s, node id: %s, block hash: %s \n", blockInfo.PeerId, blockInfo.BlockHash, err)
+			log.Printf("GetNode error: %s, node id: %s, block hash: %s \n", blockInfo.PeerId, blockInfo.BlockHash, err)
 			return
 		}
 
@@ -164,7 +164,7 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []fi
 			}()
 
 			blockInfo := blocksInfo[idx]
-			node, err := c.GetNodeClient(blockInfo.PeerId)
+			node, err := c.GetNode(blockInfo.PeerId)
 			if err != nil {
 				return
 			}
@@ -214,12 +214,12 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []fi
 
 func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *metafile.Meta, err error) {
 	for _, bi := range bis {
-		clients, err := c.GetNodeClients(bi.PeerId)
+		nodes, err := c.GetNodes(bi.PeerId)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, n := range clients {
+		for _, n := range nodes {
 			meta, err := getMeta(n.Client, bi.BlockHash)
 			if err == nil {
 				return meta, err

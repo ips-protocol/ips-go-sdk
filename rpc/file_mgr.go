@@ -1,19 +1,6 @@
 package rpc
 
-import (
-	"context"
-
-	"github.com/ipfs/go-ipfs-api"
-)
-
 // Remove the given path
-func FilesRm(s *shell.Shell, path string, recursive, force bool) error {
-	return s.Request("files/rm", path).
-		Option("recursive", recursive).
-		Option("force", force).
-		Exec(context.Background(), nil)
-}
-
 func (c *Client) Remove(fHash string) error {
 	return c.RemoveByClientKey(c.Client.GetClientKey(), fHash)
 }
@@ -25,7 +12,7 @@ func (c *Client) RemoveByClientKey(clientKey string, fHash string) error {
 	}
 
 	for _, bi := range blocksInfo {
-		node, err := c.GetNodeClient(bi.PeerId)
+		node, err := c.GetNode(bi.PeerId)
 		if err != nil {
 			return err
 		}
