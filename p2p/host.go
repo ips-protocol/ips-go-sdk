@@ -57,9 +57,13 @@ func DefaultRepo(dstore repo.Datastore, cfg conf.Config) (repo.Repo, error) {
 	}
 	c.Bootstrap = config.BootstrapPeerStrings(bootstrapPeers)
 
-	port, err := netools.GetFreePort()
-	if err != nil {
-		return nil, err
+	port := 4001
+	available, _ := netools.IsLocalPortAvailable(port)
+	if !available {
+		port, err = netools.GetFreePort()
+		if err != nil {
+			return nil, err
+		}
 	}
 	c.Addresses.Swarm = []string{"/ip4/0.0.0.0/tcp/" + strconv.Itoa(port), "/ip6/::/tcp/" + strconv.Itoa(port)}
 	c.Identity.PeerID = pid.Pretty()

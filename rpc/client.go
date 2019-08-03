@@ -158,14 +158,10 @@ func (c *Client) GetNodeClients(nodeIdMoveToFirstElement string) (ns []NodeClien
 }
 
 func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
-	//port := 4001
-	//available, _ := netools.IsLocalPortAvailable(port)
-	//if !available {
 	port, err := netools.GetFreePort()
 	if err != nil {
 		return
 	}
-	//}
 
 	err = c.P2PForward(port, peerId)
 	if err != nil {
