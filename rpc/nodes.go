@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -12,6 +13,8 @@ import (
 	"github.com/ipweb-group/go-sdk/utils/netools"
 	"github.com/libp2p/go-libp2p-peer"
 )
+
+var ErrNodeNotFound = errors.New("node not found")
 
 func (c Client) Add(r io.Reader) (id string, err error) {
 	return
@@ -27,46 +30,35 @@ type Node struct {
 }
 
 func (c *Client) GetNode(nid string) (cli Node, err error) {
-	ns, err := c.GetNodes(nid)
+	ns, err := c.GetNodes()
 	if err != nil {
 		return
 	}
 
-	if len(ns) == 0 || ns[0].Id != nid {
-		err = ErrNodeNotFound
+	for i := range ns {
+		if ns[i].Id == nid {
+			cli = ns[i]
+			return
+		}
 	}
 
-	cli = ns[0]
-
+	err = ErrNodeNotFound
 	return
 }
 
-func (c *Client) GetNodes(nodeIdMoveToFirstElement string) (ns []Node, err error) {
-	getNodes := func() []Node {
-		var ns1, ns2 []Node
-		for id, n := range c.IpfsClients {
-			if id == nodeIdMoveToFirstElement {
-				ns1 = append(ns1, Node{Id: id, Client: n})
-				continue
-			}
-			ns2 = append(ns2, Node{id, n})
-		}
-		return append(ns1, ns2...)
-	}
-	if len(c.IpfsClients) != 0 {
-		ns = getNodes()
-		return
-	}
-
-	err = c.refreshNodes()
-	if err == ErrNodeNotFound {
+func (c *Client) GetNodes() (ns []Node, err error) {
+	if len(c.IpfsClients) == 0 {
 		err = c.refreshNodes()
 	}
-	if err != nil {
-		return
+
+	for id, n := range c.IpfsClients {
+		ns = append(ns, Node{id, n})
 	}
 
-	ns = getNodes()
+	if len(ns) == 0 {
+		err = ErrNodeNotFound
+	}
+
 	return
 }
 

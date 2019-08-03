@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -106,7 +107,7 @@ func (c *Client) StreamRead(fileHash string) (rc io.ReadCloser, metaAll metafile
 	var partSize int64 = 0
 	for i := 0; i < dataShards; i++ {
 		blockInfo := blocksInfo[i]
-		nodes, e := c.GetNodes(blockInfo.PeerId)
+		node, e := c.GetNode(blockInfo.PeerId)
 		if e != nil {
 			err = e
 			log.Printf("GetNode error: %s, node id: %s, block hash: %s \n", blockInfo.PeerId, blockInfo.BlockHash, err)
@@ -117,14 +118,12 @@ func (c *Client) StreamRead(fileHash string) (rc io.ReadCloser, metaAll metafile
 			partSize = lastShardSize
 		}
 
-		node := nodes[0]
 	lazyTry:
 		rc1, e := ReadAt(node.Client, blockInfo.BlockHash, int64(meta.Len()), partSize)
 		if e != nil {
 			err = e
 			if retryTimes < 3 {
 				log.Printf("read failed, node id: %s, block hash: %s, error: %#v , retryTimes: %d, retrying\n", blockInfo.PeerId, blockInfo.BlockHash, err, retryTimes)
-				node = getRandonNode(nodes)
 				retryTimes++
 				goto lazyTry
 			}
@@ -214,18 +213,29 @@ func (c *Client) download(blocksInfo []storage.BlockInfo, metaLen int) (fhs []fi
 
 func (c *Client) GetMeta(bis []storage.BlockInfo) (meta *metafile.Meta, err error) {
 	for _, bi := range bis {
-		nodes, err := c.GetNodes(bi.PeerId)
+		node, err := c.GetNode(bi.PeerId)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, n := range nodes {
-			meta, err := getMeta(n.Client, bi.BlockHash)
-			if err == nil {
-				return meta, err
-			}
+		meta, err := getMeta(node.Client, bi.BlockHash)
+		if err == nil {
+			return meta, err
 		}
 	}
+	return
+}
+
+func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadCloser, err error) {
+	req := node.Request("cat", fp).Option("offset", offset)
+	if length != 0 {
+		req.Option("length", length)
+	}
+	resp, err := req.Send(context.Background())
+	if err != nil {
+		return
+	}
+	rc = resp.Output
 	return
 }
 

@@ -93,7 +93,7 @@ func (c *Client) UploadByClientKey(clientKey string, rdr io.Reader, fname string
 
 func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 	shards := len(fhs)
-	nodes, err := c.GetNodes("")
+	nodes, err := c.GetNodes()
 	if err != nil {
 		return err
 	}

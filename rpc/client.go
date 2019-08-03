@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"io"
 	"sync"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/ipweb-group/go-sdk/p2p"
 )
 
-var ErrNodeNotFound = errors.New("node not found")
 var ErrContractNotFound = errors.New("no contract code at given address")
 
 const P2pProtocl = "/sys/http"
@@ -88,19 +86,6 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.Client = c
 	go cli.refreshNodesTick()
 
-	return
-}
-
-func ReadAt(node *shell.Shell, fp string, offset, length int64) (rc io.ReadCloser, err error) {
-	req := node.Request("cat", fp).Option("offset", offset)
-	if length != 0 {
-		req.Option("length", length)
-	}
-	resp, err := req.Send(context.Background())
-	if err != nil {
-		return
-	}
-	rc = resp.Output
 	return
 }
 
