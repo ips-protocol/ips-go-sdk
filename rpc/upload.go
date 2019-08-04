@@ -93,10 +93,10 @@ func (c *Client) UploadByClientKey(clientKey string, rdr io.Reader, fname string
 
 func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 	shards := len(fhs)
-	nodes, err := c.GetNodes()
-	if err != nil {
-		return err
-	}
+	//nodes, err := c.GetNodes()
+	//if err != nil {
+	//	return err
+	//}
 
 	//close all files
 	defer func() {
@@ -130,8 +130,8 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			retry := 0
 
 		lazyTry:
-			nodeIdx := rand.Intn(len(nodes))
-			node := nodes[nodeIdx]
+			//nodeIdx := rand.Intn(len(nodes))
+			//node := nodes[nodeIdx]
 
 			mr := bytes.NewBuffer(meta.Encode(id))
 			var r io.Reader
@@ -140,9 +140,10 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			}
 			r = io.MultiReader(mr, fhs[id])
 
-			blkHash, err := node.Client.Add(r)
+			//blkHash, err := node.Client.Add(r)
+			blkHash, err := c.Add(r)
 			if err != nil {
-				if retry < len(nodes) {
+				if retry < 3 {
 					retry++
 					log.Println("err: ", err, "retrying... retry times:", retry)
 					goto lazyTry
@@ -150,7 +151,7 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 				errCh <- err
 				cancel()
 			}
-			log.Printf("block hash: %s, node id: %s, upload err: %+v", blkHash, node.Id, err)
+			log.Printf("block hash: %s, upload err: %+v", blkHash, err)
 		}
 	}
 	for i := 0; i < c.BlockUploadWorkers; i++ {

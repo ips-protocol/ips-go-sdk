@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ipfs/go-ipfs-api"
@@ -25,33 +27,110 @@ const (
 	NodeStatusUsing
 )
 
-type Nodes map[string]Node
+type Nodes []Node
 
 type Node struct {
-	Id          string
-	Status      NodeStatus
-	CreateTime  time.Time
-	UpdateTime  time.Time
-	UploadBytes int64
-	UploadDur   time.Duration
-	Client      *shell.Shell
+	Id             string
+	Status         NodeStatus
+	CreateTime     time.Time
+	UpdateTime     time.Time
+	UploadBytes    int64
+	UploadDur      time.Duration
+	SuccessedTimes int
+	FailedTimes    int
+	Client         *shell.Shell
+}
+
+func (ns Nodes) Len() int {
+	return len(ns)
+}
+
+func (ns Nodes) Less(i, j int) bool {
+	return ns[i].Id < ns[j].Id
+}
+
+func (ns Nodes) Swap(i, j int) {
+	ns[i], ns[j] = ns[j], ns[i]
+}
+
+func (ns Nodes) Sort() {
+	sort.Sort(ns)
 }
 
 func (c Client) Add(r io.Reader) (id string, err error) {
+	n, err := c.RandomNode()
+	if err != nil {
+		return
+	}
+
 	nr := reader.NewReader(r)
+	start := time.Now()
+	id, err = n.Client.Add(nr)
+	if err != nil {
+		c.NodesMux[n.Id].Lock()
+		n.FailedTimes++
+		c.NodesMux[n.Id].Unlock()
+		return
+	}
+
+	c.NodesMux[n.Id].Lock()
+	n.UploadDur += time.Now().Sub(start)
+	n.UploadBytes += nr.N()
+	n.SuccessedTimes++
+	n.UpdateTime = time.Now()
+	c.NodesMux[n.Id].Unlock()
 
 	return
 }
 
-func (c *Client) GetNode(nid string) (cli Node, err error) {
-	ns, err := c.GetNodes()
+func (c *Client) RandomNode() (n *Node, err error) {
+	ns, err := c.GetAvailableNodes()
+	if err != nil {
+		return
+	}
+
+	var speedSum int
+	for i := range ns {
+		if ns[i].UploadBytes == 0 {
+			continue
+		}
+
+		speedSum += int(float64(ns[i].UploadBytes) / ns[i].UploadDur.Seconds())
+	}
+
+	baseWeight := speedSum / len(ns)
+	rand.Seed(time.Now().UnixNano())
+
+	randLimit := speedSum * 2
+	if randLimit == 0 {
+		randLimit = 1
+	}
+	r := rand.Intn(randLimit)
+	for i := range ns {
+		speed := 0
+		if ns[i].UploadBytes != 0 {
+			speed = int(float64(ns[i].UploadBytes) / ns[i].UploadDur.Seconds())
+		}
+		r -= baseWeight
+		r -= speed
+		if r <= 0 {
+			n = ns[i]
+			return
+		}
+	}
+
+	return
+}
+
+func (c *Client) GetNode(nid string) (n *Node, err error) {
+	ns, err := c.GetAvailableNodes()
 	if err != nil {
 		return
 	}
 
 	for i := range ns {
 		if ns[i].Id == nid {
-			cli = ns[i]
+			n = ns[i]
 			return
 		}
 	}
@@ -60,7 +139,11 @@ func (c *Client) GetNode(nid string) (cli Node, err error) {
 	return
 }
 
-func (c *Client) GetNodes() (ns []Node, err error) {
+func (c *Client) GetAvailableNodes() (ns []*Node, err error) {
+	return c.GetNodes(NodeStatusAvailable)
+}
+
+func (c *Client) GetNodes(status NodeStatus) (ns []*Node, err error) {
 	if len(c.Nodes) == 0 {
 		err = c.refreshNodes()
 	}
@@ -70,7 +153,9 @@ func (c *Client) GetNodes() (ns []Node, err error) {
 	}
 
 	for _, n := range c.Nodes {
-		ns = append(ns, n)
+		if n.Status == status {
+			ns = append(ns, n)
+		}
 	}
 
 	return
@@ -131,6 +216,7 @@ func (c *Client) refreshNodes() error {
 	sema := make(chan int, c.NodeRefreshWorkers)
 	fmt.Println("nodes refreshing time: ", time.Now())
 
+	nodeAccMux := sync.RWMutex{}
 	ps := c.IpfsNode.Peerstore.Peers()
 	for _, p := range ps {
 		sema <- 1
@@ -145,9 +231,10 @@ func (c *Client) refreshNodes() error {
 			}
 
 			n, err := c.NewNode(id)
-			c.NodesMux.Lock()
-			c.Nodes[id] = n
-			c.NodesMux.Unlock()
+			nodeAccMux.Lock()
+			c.Nodes[id] = &n
+			c.NodesMux[id] = &sync.RWMutex{}
+			nodeAccMux.Unlock()
 			if err != nil {
 				c.P2PClose(0, id)
 			}
@@ -163,12 +250,6 @@ func (c *Client) refreshNodes() error {
 	}
 
 	return nil
-}
-
-func getRandonNode(nodes []Node) Node {
-	rand.Seed(time.Now().UnixNano())
-	i := rand.Intn(len(nodes))
-	return nodes[i]
 }
 
 func (c *Client) P2PForward(port int, peerId string) error {

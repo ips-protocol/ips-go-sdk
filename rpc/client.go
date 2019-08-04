@@ -21,8 +21,8 @@ const P2pProtocl = "/sys/http"
 
 type Client struct {
 	//Nodes               map[string]*shell.Shell
-	Nodes    Nodes
-	NodesMux sync.RWMutex
+	Nodes    map[string]*Node
+	NodesMux map[string]*sync.RWMutex
 	//IpfsUnavailableClients    map[string]*shell.Shell
 	//IpfsUnavailableClientsMux sync.RWMutex
 	NodeRefreshTime      time.Time
@@ -45,8 +45,8 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 
 	cli = &Client{IpfsNode: n}
 	//cli.Nodes = make(map[string]*shell.Shell)
-	cli.Nodes = Nodes{}
-	cli.NodesMux = sync.RWMutex{}
+	cli.Nodes = make(map[string]*Node)
+	cli.NodesMux = make(map[string]*sync.RWMutex)
 	//cli.IpfsUnavailableClients = make(map[string]*shell.Shell)
 	//cli.IpfsUnavailableClientsMux = sync.RWMutex{}
 	if cfg.NodeRefreshIntervalInSecond == 0 {
