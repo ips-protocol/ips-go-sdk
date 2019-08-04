@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ipfs/go-ipfs-api"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/contracts/storage"
@@ -21,17 +20,18 @@ var ErrContractNotFound = errors.New("no contract code at given address")
 const P2pProtocl = "/sys/http"
 
 type Client struct {
-	IpfsClients               map[string]*shell.Shell
-	IpfsClientsMux            sync.RWMutex
-	IpfsUnavailableClients    map[string]*shell.Shell
-	IpfsUnavailableClientsMux sync.RWMutex
-	NodeRefreshTime           time.Time
-	NodeRefreshDuration       time.Duration
-	NodeRequestTimeout        time.Duration
-	NodeRefreshWorkers        int
-	BlockUploadWorkers        int
-	BlockDownloadWorkers      int
-	WalletPubKey              string
+	//Nodes               map[string]*shell.Shell
+	Nodes    Nodes
+	NodesMux sync.RWMutex
+	//IpfsUnavailableClients    map[string]*shell.Shell
+	//IpfsUnavailableClientsMux sync.RWMutex
+	NodeRefreshTime      time.Time
+	NodeRefreshDuration  time.Duration
+	NodeRequestTimeout   time.Duration
+	NodeRefreshWorkers   int
+	BlockUploadWorkers   int
+	BlockDownloadWorkers int
+	WalletPubKey         string
 	*storage.Client
 	*core.IpfsNode
 }
@@ -44,10 +44,11 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	}
 
 	cli = &Client{IpfsNode: n}
-	cli.IpfsClients = make(map[string]*shell.Shell)
-	cli.IpfsClientsMux = sync.RWMutex{}
-	cli.IpfsUnavailableClients = make(map[string]*shell.Shell)
-	cli.IpfsUnavailableClientsMux = sync.RWMutex{}
+	//cli.Nodes = make(map[string]*shell.Shell)
+	cli.Nodes = Nodes{}
+	cli.NodesMux = sync.RWMutex{}
+	//cli.IpfsUnavailableClients = make(map[string]*shell.Shell)
+	//cli.IpfsUnavailableClientsMux = sync.RWMutex{}
 	if cfg.NodeRefreshIntervalInSecond == 0 {
 		cfg.NodeRefreshIntervalInSecond = 600
 	}

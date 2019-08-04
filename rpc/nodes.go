@@ -24,9 +24,24 @@ func (c Client) GetAvaiab() {
 
 }
 
+type NodeStatus int
+
+const (
+	NodeStatusUnavailable = iota
+	NodeStatusAvailable
+	NodeStatusUsing
+)
+
+type Nodes map[string]Node
+
 type Node struct {
-	Id     string
-	Client *shell.Shell
+	Id          string
+	Status      NodeStatus
+	CreateTime  time.Time
+	UpdateTime  time.Time
+	UploadBytes int64
+	UploadDur   time.Duration
+	Client      *shell.Shell
 }
 
 func (c *Client) GetNode(nid string) (cli Node, err error) {
@@ -47,22 +62,29 @@ func (c *Client) GetNode(nid string) (cli Node, err error) {
 }
 
 func (c *Client) GetNodes() (ns []Node, err error) {
-	if len(c.IpfsClients) == 0 {
+	if len(c.Nodes) == 0 {
 		err = c.refreshNodes()
 	}
 
-	for id, n := range c.IpfsClients {
-		ns = append(ns, Node{id, n})
+	if len(c.Nodes) == 0 {
+		err = ErrNodeNotFound
 	}
 
-	if len(ns) == 0 {
-		err = ErrNodeNotFound
+	for _, n := range c.Nodes {
+		ns = append(ns, n)
 	}
 
 	return
 }
 
-func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
+func (c *Client) NewNode(peerId string) (n Node, err error) {
+	n = Node{
+		Id:         peerId,
+		Status:     NodeStatusUnavailable,
+		CreateTime: time.Now(),
+		UpdateTime: time.Now(),
+	}
+
 	port, err := netools.GetFreePort()
 	if err != nil {
 		return
@@ -74,7 +96,7 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 	}
 	url := fmt.Sprintf("127.0.0.1:%d", port)
 
-	cli = shell.NewShell(url)
+	cli := shell.NewShell(url)
 	cli.SetTimeout(c.NodeRequestTimeout)
 	info, err := cli.ID()
 	if err != nil {
@@ -83,6 +105,7 @@ func (c *Client) NewIpfsClient(peerId string) (cli *shell.Shell, err error) {
 		return
 	}
 
+	n.Client = cli
 	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
 	return
 }
@@ -106,6 +129,7 @@ func (c *Client) refreshNodesTick() {
 func (c *Client) refreshNodes() error {
 	c.NodeRefreshTime = time.Now()
 	sema := make(chan int, c.NodeRefreshWorkers)
+	fmt.Println("nodes refreshing time: ", time.Now())
 
 	ps := c.IpfsNode.Peerstore.Peers()
 	for _, p := range ps {
@@ -116,41 +140,25 @@ func (c *Client) refreshNodes() error {
 			}()
 
 			id := peerId.Pretty()
-
-			c.IpfsClientsMux.RLock()
-			cli, ok := c.IpfsClients[id]
-			c.IpfsClientsMux.RUnlock()
-			if ok {
+			if _, ok := c.Nodes[id]; ok {
 				return
 			}
 
-			c.IpfsUnavailableClientsMux.RLock()
-			_, ok = c.IpfsUnavailableClients[id]
-			c.IpfsUnavailableClientsMux.RUnlock()
-			if ok {
-				return
-			}
-
-			cli, err := c.NewIpfsClient(id)
+			n, err := c.NewNode(id)
+			c.NodesMux.Lock()
+			c.Nodes[id] = n
+			c.NodesMux.Unlock()
 			if err != nil {
-				c.IpfsUnavailableClientsMux.Lock()
-				c.IpfsUnavailableClients[id] = cli
-				c.IpfsUnavailableClientsMux.Unlock()
-
 				c.P2PClose(0, id)
-				return
 			}
-
-			c.IpfsClientsMux.Lock()
-			c.IpfsClients[id] = cli
-			c.IpfsClientsMux.Unlock()
+			return
 		}(p)
 	}
 	for i := 0; i < c.NodeRefreshWorkers; i++ {
 		sema <- 1
 	}
 
-	if len(c.IpfsClients) == 0 {
+	if len(c.Nodes) == 0 {
 		return ErrNodeNotFound
 	}
 
