@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/ipweb-group/go-sdk/conf"
 	"github.com/ipweb-group/go-sdk/putPolicy"
 	"github.com/ipweb-group/go-sdk/putPolicy/persistent"
 	"github.com/ipweb-group/go-sdk/rpc"
+	"github.com/ipweb-group/go-sdk/utils"
 	"github.com/ipweb-group/go-sdk/utils/redis"
 	"github.com/ipweb-group/go-sdk/websvr/controllers"
 	"github.com/kataras/iris"
@@ -21,7 +21,10 @@ func main() {
 	putPolicy.LoadAppClients("./websvr/app-clients.json")
 	conf.LoadConfig("./websvr/conf.json")
 
-	cfg := conf.GetConfig()
+	// 初始化 Web 服务器
+	app := iris.Default()
+	// 设置日志实例
+	utils.SetLogger(app.Logger())
 
 	// 初始化 RPC 客户端
 	rpcClient, err := rpc.GetClientInstance()
@@ -31,9 +34,6 @@ func main() {
 
 	// 启动转换器线程
 	go persistent.ConvertMediaJob()
-
-	// 初始化 Web 服务器
-	app := iris.Default()
 
 	// 404 错误输出
 	app.OnErrorCode(iris.StatusNotFound, func(ctx irisContext.Context) {
@@ -52,19 +52,19 @@ func main() {
 		// 关闭 RPC 客户端
 		err := rpcClient.Close()
 		if err != nil {
-			fmt.Printf("[WARN] Close RPC Client failed, %v \n", err)
+			utils.GetLogger().Warnf("Close RPC Client failed, %v", err)
 		}
 
 		// 关闭 Redis 连接
 		err = redis.GetClient().Close()
 		if err != nil {
-			fmt.Printf("[WARN] Close redis connection failed, %v \n", err)
+			utils.GetLogger().Warnf("Close redis connection failed, %v", err)
 		}
 
 		_ = app.Shutdown(ctx)
 	})
 
-	_ = app.Run(iris.Addr(cfg.ServerHost), iris.WithoutInterruptHandler)
+	_ = app.Run(iris.Addr(conf.GetConfig().ServerHost), iris.WithoutInterruptHandler)
 
 	// app.Run(iris.AutoTLS(":443", "example.com", "admin@example.com")) 可以自动配置 Lets Encrypt 证书
 }

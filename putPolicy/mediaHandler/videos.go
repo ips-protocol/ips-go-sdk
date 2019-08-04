@@ -24,6 +24,8 @@ type videoStream struct {
 
 // 获取视频信息
 func GetVideoInfo(filePath string, mediaInfo *MediaInfo) (err error) {
+	lg := utils.GetLogger()
+
 	// 调用 ffprobe 获取视频信息
 	ffprobe := conf.GetConfig().ExternalConfig.Ffprobe
 	fields := "stream=index,codec_name,codec_type,width,height,duration"
@@ -31,14 +33,14 @@ func GetVideoInfo(filePath string, mediaInfo *MediaInfo) (err error) {
 
 	result, err := utils.ExecCommand(command)
 	if err != nil {
-		fmt.Printf("[WARN] Get video properties failed [%v]", err)
+		lg.Warnf("Get video properties failed [%v]", err)
 		return
 	}
 
 	info := videoInfo{}
 	err = json.Unmarshal([]byte(result), &info)
 	if err != nil {
-		fmt.Printf("[WARN] Get video properties failed, parse result failed, [%v]", err)
+		lg.Warnf("Get video properties failed, parse result failed, [%v]", err)
 		return
 	}
 

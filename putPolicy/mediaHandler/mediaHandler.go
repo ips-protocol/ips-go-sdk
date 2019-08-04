@@ -1,7 +1,6 @@
 package mediaHandler
 
 import (
-	"fmt"
 	"github.com/ipweb-group/go-sdk/utils"
 	"io"
 	"mime/multipart"
@@ -22,9 +21,11 @@ func DetectMediaInfo(filePath string, mimeType string) (info MediaInfo, err erro
 		MimeType: mimeType,
 	}
 
+	lg := utils.GetLogger()
+
 	// 如果文件是支持的图片类型，就调用图片处理器获取图片尺寸信息
 	if mimeType == "image/jpeg" || mimeType == "image/png" || mimeType == "image/gif" {
-		fmt.Println("[INFO] File is of supported image type, will process image size detector")
+		lg.Info("File is of supported image type, will process image size detector")
 		err = GetImageInfo(filePath, &info)
 		if err != nil {
 			return
@@ -33,7 +34,7 @@ func DetectMediaInfo(filePath string, mimeType string) (info MediaInfo, err erro
 
 	// 如果文件是视频类型，就调用视频处理器获取视频的基本信息
 	if match, _ := regexp.MatchString("video/.*", mimeType); match {
-		fmt.Println("[INFO] File is of type video, will process video converter")
+		lg.Info("File is of type video, will process video converter")
 		err = GetVideoInfo(filePath, &info)
 		if err != nil {
 			return

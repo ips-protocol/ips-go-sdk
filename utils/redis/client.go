@@ -1,9 +1,9 @@
 package redis
 
 import (
-	"fmt"
 	"github.com/go-redis/redis"
 	"github.com/ipweb-group/go-sdk/conf"
+	"github.com/ipweb-group/go-sdk/utils"
 )
 
 var redisClient *redis.Client
@@ -17,7 +17,7 @@ func GetClient() *redis.Client {
 			Password: config.Password,
 			DB:       config.DB,
 			OnConnect: func(conn *redis.Conn) error {
-				fmt.Println("Redis connection established")
+				utils.GetLogger().Info("Redis connection established")
 				return nil
 			},
 		})
@@ -25,7 +25,7 @@ func GetClient() *redis.Client {
 		// 尝试 ping redis server，失败时表示连接 Redis 失败
 		_, err := redisClient.Ping().Result()
 		if err != nil {
-			fmt.Println("Connect to Redis server failed")
+			utils.GetLogger().Error("Connect to Redis server failed")
 			panic(err)
 		}
 	}

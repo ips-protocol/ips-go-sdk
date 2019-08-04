@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"github.com/ipweb-group/go-sdk/putPolicy"
 	"github.com/ipweb-group/go-sdk/putPolicy/mediaHandler"
 	"github.com/ipweb-group/go-sdk/putPolicy/persistent"
@@ -86,7 +85,7 @@ func (s *UploadController) Upload(ctx iris.Context) {
 		magicVariable.Height = mediaInfo.Height
 		magicVariable.Duration = mediaInfo.Duration
 	} else {
-		fmt.Printf("[WARN] Detect media info failed, [%v] \n", err)
+		lg.Warnf("Detect media info failed, [%v] \n", err)
 	}
 
 	// 处理持久化任务
@@ -144,11 +143,11 @@ func (s *UploadController) Upload(ctx iris.Context) {
 	if policy.CallbackUrl != "" {
 		responseBody, err := policy.ExecCallback(magicVariable, putPolicy.EscapeURL)
 		if err != nil {
-			fmt.Printf("[WARN] Callback to %s failed, %v \n", policy.CallbackUrl, err)
+			lg.Debugf("Callback to %s failed, %v \n", policy.CallbackUrl, err)
 			throwError(utils.StatusCallbackFailed, "Callback Failed, "+err.Error(), ctx)
 			return
 		}
-		fmt.Printf("[DEBUG] Callback to %s responds %s \n", policy.CallbackUrl, responseBody)
+		lg.Debugf("Callback to %s responds %s \n", policy.CallbackUrl, responseBody)
 
 		ctx.Header("Content-Type", "application/json; charset=UTF-8")
 		_, _ = ctx.WriteString(responseBody)

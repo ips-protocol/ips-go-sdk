@@ -2,8 +2,8 @@ package persistent
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ipweb-group/go-sdk/putPolicy/mediaHandler"
+	"github.com/ipweb-group/go-sdk/utils"
 	"regexp"
 )
 
@@ -43,7 +43,7 @@ func (h *Task) CheckShouldQueueTask() bool {
 // 添加任务添加到未处理队列中
 func (h *Task) Queue() {
 	AddTaskToUnprocessedQueue(h)
-	fmt.Printf("[INFO] Video file is queued to redis: %s \n", h.FilePath)
+	utils.GetLogger().Info("Video file is queued to redis: %s", h.FilePath)
 }
 
 // 将任务转换为 JSON 字符串（用于保存到 Redis）
