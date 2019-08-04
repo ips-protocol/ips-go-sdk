@@ -11,18 +11,11 @@ import (
 	"github.com/ipfs/go-ipfs-api"
 	"github.com/ipweb-group/go-sdk/p2p"
 	"github.com/ipweb-group/go-sdk/utils/netools"
+	"github.com/ipweb-group/go-sdk/utils/reader"
 	"github.com/libp2p/go-libp2p-peer"
 )
 
 var ErrNodeNotFound = errors.New("node not found")
-
-func (c Client) Add(r io.Reader) (id string, err error) {
-	return
-}
-
-func (c Client) GetAvaiab() {
-
-}
 
 type NodeStatus int
 
@@ -42,6 +35,12 @@ type Node struct {
 	UploadBytes int64
 	UploadDur   time.Duration
 	Client      *shell.Shell
+}
+
+func (c Client) Add(r io.Reader) (id string, err error) {
+	nr := reader.NewReader(r)
+
+	return
 }
 
 func (c *Client) GetNode(nid string) (cli Node, err error) {
@@ -105,6 +104,7 @@ func (c *Client) NewNode(peerId string) (n Node, err error) {
 		return
 	}
 
+	n.Status = NodeStatusAvailable
 	n.Client = cli
 	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
 	return
