@@ -32,7 +32,7 @@ require (
 	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/karalabe/hid v1.0.0 // indirect
-	github.com/kataras/golog v0.0.0-20190624001437-99c81de45f40 // indirect
+	github.com/kataras/golog v0.0.0-20190624001437-99c81de45f40
 	github.com/kataras/iris v11.1.1+incompatible
 	github.com/kataras/pio v0.0.0-20190103105442-ea782b38602d // indirect
 	github.com/klauspost/compress v1.7.2 // indirect

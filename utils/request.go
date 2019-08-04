@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -21,8 +20,10 @@ func RequestPost(url string, body string, contentType string) (responseBody stri
 		Timeout: time.Second * 30, // 默认请求超时时间为 30 秒
 	}
 
-	fmt.Printf("[DEBUG] Send request. Url: %s, method: POST, contentType: %s \n", url, contentType)
-	fmt.Println("[DEBUG] Request body: ", body)
+	lg := GetLogger()
+
+	lg.Debugf("Send request. Url: %s, method: POST, contentType: %s", url, contentType)
+	lg.Debugf("Request body: ", body)
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 	if err != nil {
@@ -46,7 +47,7 @@ func RequestPost(url string, body string, contentType string) (responseBody stri
 
 	responseBody = string(respBody)
 
-	fmt.Printf("[DEBUG] Server response %d, %s", resp.StatusCode, responseBody)
+	lg.Debugf("Server response %d, %s", resp.StatusCode, responseBody)
 
 	// 解析响应的状态码，如果状态码不在 200 到 299 之间，则返回一个错误
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
