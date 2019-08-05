@@ -93,10 +93,6 @@ func (c *Client) UploadByClientKey(clientKey string, rdr io.Reader, fname string
 
 func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 	shards := len(fhs)
-	//nodes, err := c.GetNodes()
-	//if err != nil {
-	//	return err
-	//}
 
 	//close all files
 	defer func() {
@@ -130,9 +126,6 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			retry := 0
 
 		lazyTry:
-			//nodeIdx := rand.Intn(len(nodes))
-			//node := nodes[nodeIdx]
-
 			mr := bytes.NewBuffer(meta.Encode(id))
 			var r io.Reader
 			if retry != 0 {
@@ -140,7 +133,6 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			}
 			r = io.MultiReader(mr, fhs[id])
 
-			//blkHash, err := node.Client.Add(r)
 			blkHash, err := c.Add(r)
 			if err != nil {
 				if retry < 3 {

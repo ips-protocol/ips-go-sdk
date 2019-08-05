@@ -3,8 +3,10 @@ package rpc
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -17,14 +19,15 @@ import (
 
 var ErrContractNotFound = errors.New("no contract code at given address")
 
-const P2pProtocl = "/sys/http"
+const (
+	P2pProtocl        = "/sys/http"
+	NodeWeightInfoUrl = "http://teck.qiniudn.com/nodes.json"
+)
 
 type Client struct {
-	//Nodes               map[string]*shell.Shell
-	Nodes    map[string]*Node
-	NodesMux map[string]*sync.RWMutex
-	//IpfsUnavailableClients    map[string]*shell.Shell
-	//IpfsUnavailableClientsMux sync.RWMutex
+	Nodes                map[string]*Node
+	NodesMux             map[string]*sync.RWMutex
+	NodesWeightInfo      map[string]int
 	NodeRefreshTime      time.Time
 	NodeRefreshDuration  time.Duration
 	NodeRequestTimeout   time.Duration
@@ -44,11 +47,8 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	}
 
 	cli = &Client{IpfsNode: n}
-	//cli.Nodes = make(map[string]*shell.Shell)
 	cli.Nodes = make(map[string]*Node)
 	cli.NodesMux = make(map[string]*sync.RWMutex)
-	//cli.IpfsUnavailableClients = make(map[string]*shell.Shell)
-	//cli.IpfsUnavailableClientsMux = sync.RWMutex{}
 	if cfg.NodeRefreshIntervalInSecond == 0 {
 		cfg.NodeRefreshIntervalInSecond = 600
 	}
@@ -79,6 +79,15 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		return
 	}
 	cli.WalletPubKey = pubKey
+
+	resp, err := http.Get(NodeWeightInfoUrl)
+	if err != nil {
+		return
+	}
+	err = json.NewDecoder(resp.Body).Decode(&cli.NodesWeightInfo)
+	if err != nil {
+		return
+	}
 
 	c, err := storage.NewClient(cfg.ContractConf)
 	if err != nil {

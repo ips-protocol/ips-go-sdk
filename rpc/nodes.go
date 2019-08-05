@@ -30,15 +30,16 @@ const (
 type Nodes []Node
 
 type Node struct {
-	Id             string
-	Status         NodeStatus
-	CreateTime     time.Time
-	UpdateTime     time.Time
-	UploadBytes    int64
-	UploadDur      time.Duration
-	SuccessedTimes int
-	FailedTimes    int
-	Client         *shell.Shell
+	Id              string
+	Status          NodeStatus
+	CreateTime      time.Time
+	UpdateTime      time.Time
+	UploadBytes     int64
+	UploadDur       time.Duration
+	ManualSetWeight int
+	SuccessedTimes  int
+	FailedTimes     int
+	Client          *shell.Shell
 }
 
 func (ns Nodes) Len() int {
@@ -58,7 +59,7 @@ func (ns Nodes) Sort() {
 }
 
 func (c Client) Add(r io.Reader) (id string, err error) {
-	n, err := c.RandomNode()
+	n, err := c.NodeByManulWeight()
 	if err != nil {
 		return
 	}
@@ -113,6 +114,30 @@ func (c *Client) RandomNode() (n *Node, err error) {
 		}
 		r -= baseWeight
 		r -= speed
+		if r <= 0 {
+			n = ns[i]
+			return
+		}
+	}
+
+	return
+}
+
+func (c *Client) NodeByManulWeight() (n *Node, err error) {
+	ns, err := c.GetAvailableNodes()
+	if err != nil {
+		return
+	}
+
+	var weightSum int
+	for i := range ns {
+		weightSum += ns[i].ManualSetWeight
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	r := rand.Intn(weightSum)
+	for i := range ns {
+		r -= ns[i].ManualSetWeight
 		if r <= 0 {
 			n = ns[i]
 			return
@@ -237,6 +262,10 @@ func (c *Client) refreshNodes() error {
 			nodeAccMux.Unlock()
 			if err != nil {
 				c.P2PClose(0, id)
+			}
+
+			if w, ok := c.NodesWeightInfo[id]; ok {
+				n.ManualSetWeight += w + 1
 			}
 			return
 		}(p)
