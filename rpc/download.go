@@ -88,16 +88,18 @@ func (c *Client) Download(fileHash string, w io.Writer) (metaAll metafile.Meta, 
 	return
 }
 
-func (c *Client) StreamRead(fileHash string) (rc io.ReadCloser, metaAll metafile.Meta, err error) {
+func (c *Client) StreamRead(fileHash string) (rc io.ReadCloser, meta metafile.Meta, err error) {
 	blocksInfo, err := c.GetBlocksInfo(fileHash)
 	if err != nil {
 		return
 	}
 
-	meta, err := c.GetMeta(blocksInfo)
+	_meta, err := c.GetMeta(blocksInfo)
 	if err != nil {
 		return
 	}
+
+	meta = *_meta
 
 	dataShards := int(meta.MetaHeader.DataShards)
 	_, _, shardSize := file.BlockCount(meta.FSize)
