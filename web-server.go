@@ -17,6 +17,11 @@ import (
 // 最大允许上传的文件大小：500MB
 const MaxFileSize int64 = 500 << 20
 
+func init() {
+	// 初始化临时目录
+	utils.InitTmpDir()
+}
+
 func main() {
 	putPolicy.LoadAppClients("./websvr/app-clients.json")
 	conf.LoadConfig("./websvr/conf.json")

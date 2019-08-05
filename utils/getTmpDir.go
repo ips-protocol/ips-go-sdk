@@ -1,39 +1,46 @@
 package utils
 
 import (
-	"fmt"
+	"log"
 	"os"
+	"path"
 	"path/filepath"
 )
+
+// 初始化临时目录
+// 自动创建 tmp 和 tmp/cache 两个临时文件夹
+func InitTmpDir() {
+	_dir, _ := filepath.Abs("./tmp")
+	if !PathExists(_dir) {
+		err := os.Mkdir(_dir, os.ModePerm)
+		if err != nil {
+			log.Fatalf("[ERROR] Create tmp dir failed [%v]", err)
+		}
+	}
+
+	_cacheDir := path.Join(_dir, "cache")
+	if !PathExists(_cacheDir) {
+		err := os.Mkdir(_cacheDir, os.ModePerm)
+		if err != nil {
+			log.Fatalf("[ERROR] Create cache dir failed, %v", err)
+		}
+	}
+}
 
 // 获取临时目录
 func GetTmpDir() string {
 	_dir, _ := filepath.Abs("./tmp")
-	exist, err := PathExists(_dir)
-	if err != nil {
-		fmt.Printf("Get tmp dir failed [%v]", err)
-		return ""
-	}
+	return _dir
+}
 
-	if !exist {
-		err = os.Mkdir(_dir, os.ModePerm)
-		if err != nil {
-			fmt.Printf("Create tmp dir failed [%v]", err)
-			return ""
-		}
-	}
-
+// 获取缓存目录
+func GetCacheDir() string {
+	_dir, _ := filepath.Abs("./tmp/cache")
 	return _dir
 }
 
 // 判断文件夹是否存在
-func PathExists(path string) (bool, error) {
+func PathExists(path string) bool {
 	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
+	return err == nil || os.IsExist(err)
 }

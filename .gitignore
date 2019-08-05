@@ -219,3 +219,6 @@ svr
 svr.exe
 web-server
 web-server.exe
+
+# Temp files
+tmp/
