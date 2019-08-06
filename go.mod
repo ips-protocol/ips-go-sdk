@@ -23,7 +23,7 @@ require (
 	github.com/ipfs/go-ipfs v0.4.21
 	github.com/ipfs/go-ipfs-addr v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.1
-	github.com/ipweb-group/go-ipws-config v0.9.0
+	github.com/ipweb-group/go-ipws-config v0.9.1
 	github.com/iris-contrib/blackfriday v2.0.0+incompatible // indirect
 	github.com/iris-contrib/formBinder v0.0.0-20190104093907-fbd5963f41e1 // indirect
 	github.com/iris-contrib/go.uuid v2.0.0+incompatible // indirect
@@ -38,7 +38,7 @@ require (
 	github.com/klauspost/compress v1.7.2 // indirect
 	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/klauspost/reedsolomon v1.9.2
-	github.com/libp2p/go-libp2p-core v0.0.8
+	github.com/libp2p/go-libp2p-core v0.0.6
 	github.com/libp2p/go-libp2p-crypto v0.0.2
 	github.com/libp2p/go-libp2p-peer v0.1.1
 	github.com/libp2p/go-libp2p-protocol v0.0.1
@@ -71,6 +71,6 @@ require (
 
 go 1.12
 
-replace github.com/ipfs/go-ipfs v0.4.21 => github.com/ipweb-group/go-ipws v0.9.2
+replace github.com/ipfs/go-ipfs v0.4.21 => github.com/ipweb-group/go-ipws v0.9.3
 
 replace github.com/ethereum/go-ethereum v1.8.7 => github.com/ipweb-group/ipw v1.9.0
