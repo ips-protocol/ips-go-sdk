@@ -34,8 +34,29 @@ func GetCacheFilePath(cid string) string {
 	return filepath.Join(utils.GetCacheDir(), cid)
 }
 
+// 缓存是否存在并可用
+// 仅在缓存同时存在于 Redis 和缓存目录时，才认为其可用
+func IsCacheAvailable(cid string) bool {
+	exist, _ := redis.GetClient().Exists(FileKeyPrefix + cid).Result()
+	if exist == int64(0) {
+		return false
+	}
+
+	cachePath := GetCacheFilePath(cid)
+	return utils.PathExists(cachePath)
+}
+
+// 后台下载文件，下载后的内容不做任何处理
 func BackgroundDownload(cid string) {
-	// TODO
+	lg := utils.GetLogger()
+	lg.Info("Background downloading is started")
+	rpcClient, _ := rpc.GetClientInstance()
+	stream, _, err := rpcClient.StreamRead(cid)
+	if err != nil {
+		lg.Warn("Background download failed, ", err)
+		return
+	}
+	_ = stream.Close()
 }
 
 // 获取缓存文件（不会检查文件是否存在）
@@ -97,7 +118,7 @@ func RemoveCachedFileAndRedisKey(cid string) {
 }
 
 // 下载文件到本地缓存，并添加记录到 Redis 中
-func DownloadFileToCache(cid string, cachePath string) (err error) {
+func DownloadFileToCache(cid string) (err error) {
 	rpcClient, _ := rpc.GetClientInstance()
 	lg := utils.GetLogger()
 
@@ -106,8 +127,9 @@ func DownloadFileToCache(cid string, cachePath string) (err error) {
 		lg.Errorf("An error occurred while downloading %s, %v", cid, err)
 		return
 	}
+	defer stream.Close()
 
-	dst, err := os.Create(cachePath)
+	dst, err := os.Create(GetCacheFilePath(cid))
 	if err != nil {
 		return
 	}
