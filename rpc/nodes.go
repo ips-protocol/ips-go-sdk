@@ -25,6 +25,7 @@ const (
 	NodeStatusUnavailable = iota
 	NodeStatusAvailable
 	NodeStatusUsing
+	NodeStatusClosed
 )
 
 type Nodes []Node
@@ -116,6 +117,11 @@ func (c *Client) RandomNode() (n *Node, err error) {
 		r -= speed
 		if r <= 0 {
 			n = ns[i]
+			if n.Status == NodeStatusClosed {
+				c.NodesMux[n.Id].Lock()
+				n, err = c.NewNode(n.Id)
+				c.NodesMux[n.Id].Unlock()
+			}
 			return
 		}
 	}
@@ -124,7 +130,7 @@ func (c *Client) RandomNode() (n *Node, err error) {
 }
 
 func (c *Client) NodeByManulWeight() (n *Node, err error) {
-	ns, err := c.GetAvailableNodes()
+	ns, err := c.GetAvailableOrClosedNodes()
 	if err != nil {
 		return
 	}
@@ -140,6 +146,11 @@ func (c *Client) NodeByManulWeight() (n *Node, err error) {
 		r -= ns[i].ManualSetWeight
 		if r <= 0 {
 			n = ns[i]
+			if n.Status == NodeStatusClosed {
+				c.NodesMux[n.Id].Lock()
+				n, err = c.NewNode(n.Id)
+				c.NodesMux[n.Id].Unlock()
+			}
 			return
 		}
 	}
@@ -156,6 +167,11 @@ func (c *Client) GetNode(nid string) (n *Node, err error) {
 	for i := range ns {
 		if ns[i].Id == nid {
 			n = ns[i]
+			if n.Status == NodeStatusClosed {
+				c.NodesMux[n.Id].Lock()
+				n, err = c.NewNode(n.Id)
+				c.NodesMux[n.Id].Unlock()
+			}
 			return
 		}
 	}
@@ -166,6 +182,21 @@ func (c *Client) GetNode(nid string) (n *Node, err error) {
 
 func (c *Client) GetAvailableNodes() (ns []*Node, err error) {
 	return c.GetNodes(NodeStatusAvailable)
+}
+
+func (c *Client) GetAvailableOrClosedNodes() (ns []*Node, err error) {
+	cNodes, err := c.GetNodes(NodeStatusClosed)
+	if err != nil {
+		return
+	}
+
+	aNodes, err := c.GetNodes(NodeStatusAvailable)
+	if err != nil {
+		return
+	}
+
+	ns = append(aNodes, cNodes...)
+	return
 }
 
 func (c *Client) GetNodes(status NodeStatus) (ns []*Node, err error) {
@@ -186,12 +217,15 @@ func (c *Client) GetNodes(status NodeStatus) (ns []*Node, err error) {
 	return
 }
 
-func (c *Client) NewNode(peerId string) (n Node, err error) {
-	n = Node{
-		Id:         peerId,
-		Status:     NodeStatusUnavailable,
-		CreateTime: time.Now(),
-		UpdateTime: time.Now(),
+func (c *Client) NewNode(peerId string) (n *Node, err error) {
+	n, ok := c.Nodes[peerId]
+	if !ok {
+		n = &Node{
+			Id:         peerId,
+			Status:     NodeStatusUnavailable,
+			CreateTime: time.Now(),
+			UpdateTime: time.Now(),
+		}
 	}
 
 	port, err := netools.GetFreePort()
@@ -214,6 +248,7 @@ func (c *Client) NewNode(peerId string) (n Node, err error) {
 		return
 	}
 
+	n.UpdateTime = time.Now()
 	n.Status = NodeStatusAvailable
 	n.Client = cli
 	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
@@ -231,6 +266,24 @@ func (c *Client) refreshNodesTick() {
 			err = c.refreshNodes()
 			if err != nil {
 				fmt.Println("refreshNodes err: ", err)
+			}
+		}
+	}
+}
+
+func (c *Client) closeNodesTick() {
+	fmt.Println("closeNodes tick.")
+	for {
+		select {
+		case <-time.Tick(c.NodeCloseDuration):
+			for _, n := range c.Nodes {
+				c.NodesMux[n.Id].Lock()
+				dur := time.Now().Sub(n.UpdateTime.Add(c.NodeCloseDuration))
+				if n.Status == NodeStatusAvailable && dur.Seconds() > 0 {
+					n.Status = NodeStatusClosed
+					c.P2PClose(0, n.Id)
+				}
+				c.NodesMux[n.Id].Unlock()
 			}
 		}
 	}
@@ -257,7 +310,7 @@ func (c *Client) refreshNodes() error {
 
 			n, err := c.NewNode(id)
 			nodeAccMux.Lock()
-			c.Nodes[id] = &n
+			c.Nodes[id] = n
 			c.NodesMux[id] = &sync.RWMutex{}
 			nodeAccMux.Unlock()
 			if err != nil {

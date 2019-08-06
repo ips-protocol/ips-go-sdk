@@ -30,6 +30,7 @@ type Client struct {
 	NodesWeightInfo      map[string]int
 	NodeRefreshTime      time.Time
 	NodeRefreshDuration  time.Duration
+	NodeCloseDuration    time.Duration
 	NodeRequestTimeout   time.Duration
 	NodeRefreshWorkers   int
 	BlockUploadWorkers   int
@@ -58,6 +59,11 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		cfg.NodeRefreshWorkers = 10
 	}
 	cli.NodeRefreshWorkers = cfg.NodeRefreshWorkers
+
+	if cfg.NodeCloseIntervalInSecond == 0 {
+		cfg.NodeRefreshIntervalInSecond = 3600
+	}
+	cli.NodeCloseDuration = time.Second * time.Duration(cfg.NodeCloseIntervalInSecond)
 
 	if cfg.NodeRequestTimeoutInSecond == 0 {
 		cfg.NodeRequestTimeoutInSecond = 60
@@ -95,6 +101,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	}
 	cli.Client = c
 	go cli.refreshNodesTick()
+	go cli.closeNodesTick()
 
 	return
 }
