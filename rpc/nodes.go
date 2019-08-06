@@ -64,6 +64,9 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 	if err != nil {
 		return
 	}
+	defer func() {
+		fmt.Printf("upload node id: %s, block hash: %s, err: %+v\n", n.Id, id, err)
+	}()
 
 	nr := reader.NewReader(r)
 	start := time.Now()

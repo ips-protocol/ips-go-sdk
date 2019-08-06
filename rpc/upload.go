@@ -133,7 +133,7 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			}
 			r = io.MultiReader(mr, fhs[id])
 
-			blkHash, err := c.Add(r)
+			_, err := c.Add(r)
 			if err != nil {
 				if retry < 3 {
 					retry++
@@ -143,7 +143,6 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 				errCh <- err
 				cancel()
 			}
-			log.Printf("block hash: %s, upload err: %+v", blkHash, err)
 		}
 	}
 	for i := 0; i < c.BlockUploadWorkers; i++ {
