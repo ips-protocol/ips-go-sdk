@@ -108,6 +108,14 @@ func AddCachedFileToRedis(cid string, meta metafile.Meta) {
 	})
 }
 
+// 更新文件在缓存中的最后访问时间（该时间用于清理缓存）
+func UpdateFileAccessTimeToNow(cid string) {
+	redis.GetClient().ZAdd(FileCacheSetKey, _redis.Z{
+		Score:  float64(time.Now().Unix()),
+		Member: cid,
+	})
+}
+
 // 删除缓存文件，并删除 Redis 中对应的记录
 func RemoveCachedFileAndRedisKey(cid string) {
 	redisClient := redis.GetClient()

@@ -51,6 +51,11 @@ func (d *DownloadController) StreamedDownload(ctx iris.Context) {
 
 	lg.Info("Read file from cache, ", cid)
 
+	// 更新文件在缓存中的最后访问时间（该时间用于清理缓存）
+	defer func() {
+		go fileCache.UpdateFileAccessTimeToNow(cid)
+	}()
+
 	// 处理 Range 请求
 	rangeHeader := ctx.Request().Header.Get("Range")
 	if rangeHeader != "" {
