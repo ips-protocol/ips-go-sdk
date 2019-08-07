@@ -34,7 +34,7 @@ func DetectMediaInfo(filePath string, mimeType string) (info MediaInfo, err erro
 
 	// 如果文件是视频类型，就调用视频处理器获取视频的基本信息
 	if match, _ := regexp.MatchString("video/.*", mimeType); match {
-		lg.Info("File is of type video, will process video converter")
+		lg.Info("File is of type video, will process video information detector")
 		err = GetVideoInfo(filePath, &info)
 		if err != nil {
 			return

@@ -3,7 +3,6 @@ package fileCache
 import (
 	"encoding/json"
 	_redis "github.com/go-redis/redis"
-	"github.com/ipfs/go-ipfs/metafile"
 	"github.com/ipweb-group/go-sdk/rpc"
 	"github.com/ipweb-group/go-sdk/utils"
 	"github.com/ipweb-group/go-sdk/utils/redis"
@@ -88,13 +87,7 @@ func GetCachedFile(cid string) (file *os.File, fileInfo CachedFile, err error) {
 }
 
 // 添加缓存文件到 Redis 中
-func AddCachedFileToRedis(cid string, meta metafile.Meta) {
-	c := CachedFile{
-		Hash:     cid,
-		Name:     meta.FName,
-		Size:     meta.FSize,
-		MimeType: mime.TypeByExtension(filepath.Ext(meta.FName)),
-	}
+func AddCachedFileToRedis(cid string, c CachedFile) {
 	str, _ := json.Marshal(c)
 
 	redisClient := redis.GetClient()
@@ -146,7 +139,13 @@ func DownloadFileToCache(cid string) (err error) {
 	// 保存文件，并在保存成功后，写入文件信息到缓存
 	_, err = io.Copy(dst, stream)
 	if err == nil {
-		AddCachedFileToRedis(cid, meta)
+		c := CachedFile{
+			Hash:     cid,
+			Name:     meta.FName,
+			Size:     meta.FSize,
+			MimeType: mime.TypeByExtension(filepath.Ext(meta.FName)),
+		}
+		AddCachedFileToRedis(cid, c)
 	}
 	return
 }

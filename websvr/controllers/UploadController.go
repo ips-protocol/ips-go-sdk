@@ -95,6 +95,7 @@ func (s *UploadController) Upload(ctx iris.Context) {
 		PersistentOps:       policy.PersistentOps,
 		PersistentNotifyUrl: policy.PersistentNotifyUrl,
 		MediaInfo:           mediaInfo,
+		ClientKey:           policy.ClientKey,
 	}
 	shouldRemoveTmpFile := persistentTask.CheckShouldQueueTask()
 

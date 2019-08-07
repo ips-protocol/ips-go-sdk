@@ -120,7 +120,7 @@ func handleRangeRequest(ctx iris.Context, file *os.File, fileInfo fileCache.Cach
 		end = fileInfo.Size - 1
 	}
 	if matches[1] == "" && matches[2] != "" {
-		start = fileInfo.Size - end
+		start = fileInfo.Size - end - 1
 		end = fileInfo.Size - 1
 	}
 
