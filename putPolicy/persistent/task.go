@@ -101,9 +101,10 @@ func (h *Task) ProcessPersistent() (results []Result) {
 					go result.AddResultFileToCache(h)
 				}
 			}
-
-			results = append(results, result)
 		}
+
+		result.PersistentOp = op
+		results = append(results, result)
 	}
 
 	return

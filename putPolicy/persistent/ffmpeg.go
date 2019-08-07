@@ -23,8 +23,8 @@ func FfmpegCovertVideo(task *Task) (result Result) {
 		return
 	}
 
-	command := fmt.Sprintf("%s -stats -y -hide_banner -v quiet -i %s -c:v libx264 -c:a aac %s", ffmpeg, inputFilePath, outputFilePath)
-	lg.Infof("[INFO] Start ffmpeg converter, command is %s", command)
+	command := fmt.Sprintf("%s -stats -y -hide_banner -i %s -c:v libx264 -c:a aac %s", ffmpeg, inputFilePath, outputFilePath)
+	lg.Infof("Start ffmpeg converter, command is %s", command)
 
 	_ret, err := utils.ExecCommand(command)
 	lg.Info(_ret)
@@ -33,7 +33,7 @@ func FfmpegCovertVideo(task *Task) (result Result) {
 		result.Code = CodeFailed
 		result.Desc = err.Error() + _ret
 	} else {
-		lg.Info("[INFO] Convert completed")
+		lg.Info("Convert completed")
 		result.Code = CodeSuccess
 		result.outputFilePath = outputFilePath
 	}
@@ -47,8 +47,8 @@ func FfmpegVideoThumb(task *Task) (result Result) {
 	inputFilePath := task.FilePath
 	outputFilePath := inputFilePath + "-convert.jpg"
 
-	command := fmt.Sprintf("%s -stats -y -hide_banner -v quiet -i %s -r 1 -f image2 %s", ffmpeg, inputFilePath, outputFilePath)
-	lg.Infof("[INFO] Start ffmpeg converter, command is %s", command)
+	command := fmt.Sprintf("%s -stats -y -hide_banner -i %s -ss 1 -frames:v 1 -f image2 %s", ffmpeg, inputFilePath, outputFilePath)
+	lg.Info("Start ffmpeg converter, command is ", command)
 
 	_ret, err := utils.ExecCommand(command)
 	lg.Info(_ret)
@@ -58,7 +58,7 @@ func FfmpegVideoThumb(task *Task) (result Result) {
 		result.Desc = err.Error() + _ret
 
 	} else {
-		lg.Info("[INFO] Convert completed")
+		lg.Info("Convert completed")
 		result.Code = CodeSuccess
 		result.outputFilePath = outputFilePath
 	}
