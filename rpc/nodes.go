@@ -32,6 +32,7 @@ type Nodes []Node
 
 type Node struct {
 	Id              string
+	Port            int
 	Status          NodeStatus
 	CreateTime      time.Time
 	UpdateTime      time.Time
@@ -65,7 +66,8 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 		return
 	}
 	defer func() {
-		fmt.Printf("upload node id: %s, block hash: %s, err: %+v\n", n.Id, id, err)
+		fmt.Printf("upload node id: %s, conn port: %d, block hash: %s, err: %+v\n", n.Id, n.Port, id, err)
+		c.P2PClose(n.Port, n.Id)
 	}()
 
 	nr := reader.NewReader(r)
@@ -148,12 +150,7 @@ func (c *Client) NodeByManulWeight() (n *Node, err error) {
 	for i := range ns {
 		r -= ns[i].ManualSetWeight
 		if r <= 0 {
-			n = ns[i]
-			if n.Status == NodeStatusClosed {
-				c.NodesMux[n.Id].Lock()
-				n, err = c.NewNode(n.Id)
-				c.NodesMux[n.Id].Unlock()
-			}
+			n, err = c.NewNode(ns[i].Id)
 			return
 		}
 	}
@@ -221,39 +218,47 @@ func (c *Client) GetNodes(status NodeStatus) (ns []*Node, err error) {
 }
 
 func (c *Client) NewNode(peerId string) (n *Node, err error) {
-	n, ok := c.Nodes[peerId]
-	if !ok {
-		n = &Node{
-			Id:         peerId,
-			Status:     NodeStatusUnavailable,
-			CreateTime: time.Now(),
-			UpdateTime: time.Now(),
-		}
+	n = &Node{
+		Id:         peerId,
+		Status:     NodeStatusUnavailable,
+		CreateTime: time.Now(),
+		UpdateTime: time.Now(),
 	}
 
 	port, err := netools.GetFreePort()
 	if err != nil {
 		return
 	}
+	n.Port = port
 
 	err = c.P2PForward(port, peerId)
 	if err != nil {
 		return
 	}
-	url := fmt.Sprintf("127.0.0.1:%d", port)
 
+	url := fmt.Sprintf("127.0.0.1:%d", port)
 	cli := shell.NewShell(url)
 	cli.SetTimeout(c.NodeRequestTimeout)
-	info, err := cli.ID()
+	n.Client = cli
+	n.UpdateTime = time.Now()
+
+	return
+}
+
+func (c *Client) NewNodeAndVerify(peerId string) (n *Node, err error) {
+	n, err = c.NewNode(peerId)
 	if err != nil {
-		c.P2PClose(0, peerId)
-		fmt.Println("bad peer: ", peerId, " err: ", err)
 		return
 	}
 
-	n.UpdateTime = time.Now()
+	info, err := n.Client.ID()
+	if err != nil {
+		c.P2PClose(n.Port, peerId)
+		fmt.Println("bad peer: ", peerId, " err: ", err)
+		return
+	}
 	n.Status = NodeStatusAvailable
-	n.Client = cli
+
 	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
 	return
 }
@@ -311,7 +316,7 @@ func (c *Client) refreshNodes() error {
 				return
 			}
 
-			n, err := c.NewNode(id)
+			n, err := c.NewNodeAndVerify(id)
 			nodeAccMux.Lock()
 			c.Nodes[id] = n
 			c.NodesMux[id] = &sync.RWMutex{}
