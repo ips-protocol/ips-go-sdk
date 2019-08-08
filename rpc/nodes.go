@@ -24,7 +24,6 @@ type NodeStatus int
 const (
 	NodeStatusUnavailable = iota
 	NodeStatusAvailable
-	NodeStatusUsing
 	NodeStatusClosed
 )
 
@@ -64,6 +63,16 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 	n, err := c.NodeByManulWeight()
 	defer func() {
 		fmt.Printf("upload node id: %s, block hash: %s, err: %+v\n", n.Id, id, err)
+		if err != nil {
+			c.NodesMux[n.Id].Lock()
+			n.FailedTimes++
+			failedRate := float64(n.FailedTimes) / float64(n.FailedTimes+n.SuccessedTimes)
+			if failedRate >= 0.2 {
+				n.Status = NodeStatusUnavailable
+			}
+			c.NodesMux[n.Id].Unlock()
+		}
+
 		c.NodesAllocCond.L.Lock()
 		c.Nodes[n.Id].ConnQuota += 1
 		c.NodesAllocCond.L.Unlock()
@@ -78,9 +87,6 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 	start := time.Now()
 	id, err = n.Client.Add(nr)
 	if err != nil {
-		c.NodesMux[n.Id].Lock()
-		n.FailedTimes++
-		c.NodesMux[n.Id].Unlock()
 		return
 	}
 
@@ -151,11 +157,24 @@ func (c *Client) NodeByManulWeight() (n *Node, err error) {
 	if err != nil {
 		return
 	}
-	Nodes(ns).Sort()
-	if len(ns) == 0 || ns[0].ConnQuota <= 0 {
-		c.NodesAllocCond.Wait()
+	if len(ns) == 0 {
+		err = ErrNodeNotFound
+		return
 	}
+
 	Nodes(ns).Sort()
+	if ns[0].ConnQuota <= 0 {
+		c.NodesAllocCond.Wait()
+		ns, err := c.GetAvailableOrClosedNodes()
+		if err != nil {
+			return nil, err
+		}
+		if len(ns) == 0 {
+			err = ErrNodeNotFound
+			return nil, err
+		}
+		Nodes(ns).Sort()
+	}
 
 	var availNodes []*Node
 	connQuotaFlag := ns[0].ConnQuota
@@ -248,14 +267,11 @@ func (c *Client) GetNodes(status NodeStatus) (ns []*Node, err error) {
 }
 
 func (c *Client) NewNode(peerId string) (n *Node, err error) {
-	n, ok := c.Nodes[peerId]
-	if !ok {
-		n = &Node{
-			Id:         peerId,
-			Status:     NodeStatusUnavailable,
-			CreateTime: time.Now(),
-			UpdateTime: time.Now(),
-		}
+	n = &Node{
+		Id:         peerId,
+		Status:     NodeStatusUnavailable,
+		CreateTime: time.Now(),
+		UpdateTime: time.Now(),
 	}
 
 	port, err := netools.GetFreePort()
@@ -278,7 +294,6 @@ func (c *Client) NewNode(peerId string) (n *Node, err error) {
 		return
 	}
 
-	n.UpdateTime = time.Now()
 	n.Status = NodeStatusAvailable
 	n.Client = cli
 	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
@@ -324,7 +339,6 @@ func (c *Client) refreshNodes() error {
 	sema := make(chan int, c.NodeRefreshWorkers)
 	fmt.Println("nodes refreshing time: ", time.Now())
 
-	nodeAccMux := sync.RWMutex{}
 	ps := c.IpfsNode.Peerstore.Peers()
 	for _, p := range ps {
 		sema <- 1
@@ -338,15 +352,10 @@ func (c *Client) refreshNodes() error {
 				return
 			}
 
-			n, err := c.NewNode(id)
-			nodeAccMux.Lock()
+			n, _ := c.NewNode(id)
 			n.ConnQuota = c.ConnQuotaPerNode
 			c.Nodes[id] = n
 			c.NodesMux[id] = &sync.RWMutex{}
-			nodeAccMux.Unlock()
-			if err != nil {
-				c.P2PClose(0, id)
-			}
 
 			if w, ok := c.NodesWeightInfo[id]; ok {
 				n.ManualSetWeight += w + 1
