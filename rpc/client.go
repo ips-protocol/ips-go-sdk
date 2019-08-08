@@ -21,7 +21,7 @@ var ErrContractNotFound = errors.New("no contract code at given address")
 
 const (
 	P2pProtocl        = "/sys/http"
-	NodeWeightInfoUrl = "http://teck.qiniudn.com/nodes.json"
+	NodeWeightInfoUrl = "http://teck.qiniudn.com/nodes.json?v=1"
 )
 
 type Client struct {
