@@ -3,7 +3,6 @@ package fileCache
 import (
 	"encoding/json"
 	_redis "github.com/go-redis/redis"
-	"github.com/ipfs/go-ipfs/metafile"
 	"github.com/ipweb-group/go-sdk/rpc"
 	"github.com/ipweb-group/go-sdk/utils"
 	"github.com/ipweb-group/go-sdk/utils/redis"
@@ -34,8 +33,29 @@ func GetCacheFilePath(cid string) string {
 	return filepath.Join(utils.GetCacheDir(), cid)
 }
 
+// 缓存是否存在并可用
+// 仅在缓存同时存在于 Redis 和缓存目录时，才认为其可用
+func IsCacheAvailable(cid string) bool {
+	exist, _ := redis.GetClient().Exists(FileKeyPrefix + cid).Result()
+	if exist == int64(0) {
+		return false
+	}
+
+	cachePath := GetCacheFilePath(cid)
+	return utils.PathExists(cachePath)
+}
+
+// 后台下载文件，下载后的内容不做任何处理
 func BackgroundDownload(cid string) {
-	// TODO
+	lg := utils.GetLogger()
+	lg.Info("Background downloading is started")
+	rpcClient, _ := rpc.GetClientInstance()
+	stream, _, err := rpcClient.StreamRead(cid)
+	if err != nil {
+		lg.Warn("Background download failed, ", err)
+		return
+	}
+	_ = stream.Close()
 }
 
 // 获取缓存文件（不会检查文件是否存在）
@@ -67,13 +87,7 @@ func GetCachedFile(cid string) (file *os.File, fileInfo CachedFile, err error) {
 }
 
 // 添加缓存文件到 Redis 中
-func AddCachedFileToRedis(cid string, meta metafile.Meta) {
-	c := CachedFile{
-		Hash:     cid,
-		Name:     meta.FName,
-		Size:     meta.FSize,
-		MimeType: mime.TypeByExtension(filepath.Ext(meta.FName)),
-	}
+func AddCachedFileToRedis(cid string, c CachedFile) {
 	str, _ := json.Marshal(c)
 
 	redisClient := redis.GetClient()
@@ -83,6 +97,14 @@ func AddCachedFileToRedis(cid string, meta metafile.Meta) {
 	now := time.Now().Unix()
 	redisClient.ZAdd(FileCacheSetKey, _redis.Z{
 		Score:  float64(now),
+		Member: cid,
+	})
+}
+
+// 更新文件在缓存中的最后访问时间（该时间用于清理缓存）
+func UpdateFileAccessTimeToNow(cid string) {
+	redis.GetClient().ZAdd(FileCacheSetKey, _redis.Z{
+		Score:  float64(time.Now().Unix()),
 		Member: cid,
 	})
 }
@@ -97,7 +119,7 @@ func RemoveCachedFileAndRedisKey(cid string) {
 }
 
 // 下载文件到本地缓存，并添加记录到 Redis 中
-func DownloadFileToCache(cid string, cachePath string) (err error) {
+func DownloadFileToCache(cid string) (err error) {
 	rpcClient, _ := rpc.GetClientInstance()
 	lg := utils.GetLogger()
 
@@ -106,8 +128,9 @@ func DownloadFileToCache(cid string, cachePath string) (err error) {
 		lg.Errorf("An error occurred while downloading %s, %v", cid, err)
 		return
 	}
+	defer stream.Close()
 
-	dst, err := os.Create(cachePath)
+	dst, err := os.Create(GetCacheFilePath(cid))
 	if err != nil {
 		return
 	}
@@ -116,7 +139,13 @@ func DownloadFileToCache(cid string, cachePath string) (err error) {
 	// 保存文件，并在保存成功后，写入文件信息到缓存
 	_, err = io.Copy(dst, stream)
 	if err == nil {
-		AddCachedFileToRedis(cid, meta)
+		c := CachedFile{
+			Hash:     cid,
+			Name:     meta.FName,
+			Size:     meta.FSize,
+			MimeType: mime.TypeByExtension(filepath.Ext(meta.FName)),
+		}
+		AddCachedFileToRedis(cid, c)
 	}
 	return
 }

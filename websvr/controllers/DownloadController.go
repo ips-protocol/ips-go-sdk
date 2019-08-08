@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"github.com/ipweb-group/go-sdk/utils"
 	"github.com/ipweb-group/go-sdk/utils/fileCache"
 	"github.com/kataras/iris"
 	"io"
@@ -27,9 +26,13 @@ func (d *DownloadController) StreamedDownload(ctx iris.Context) {
 	isFileDownloadedFromIPFS := false
 
 	// 检查文件是否存在于缓存中，如果不存在，则将其下载到缓存，并写到 Redis
-	cacheFilePath := fileCache.GetCacheFilePath(cid)
-	if !utils.PathExists(cacheFilePath) {
-		err := fileCache.DownloadFileToCache(cid, cacheFilePath)
+	if !fileCache.IsCacheAvailable(cid) {
+		lg.Info("File cache not available, start downloading")
+		// 尝试删除可能存在的缓存文件
+		fileCache.RemoveCachedFileAndRedisKey(cid)
+
+		// 从 IPFS 中下载文件
+		err := fileCache.DownloadFileToCache(cid)
 		if err != nil {
 			throwError(iris.StatusInternalServerError, err.Error(), ctx)
 			return
@@ -38,21 +41,20 @@ func (d *DownloadController) StreamedDownload(ctx iris.Context) {
 		isFileDownloadedFromIPFS = true
 	}
 
-	// 重新检查文件是否存在于缓存中
-	if !utils.PathExists(cacheFilePath) {
-		throwError(iris.StatusNotFound, "Document not found", ctx)
-		return
-	}
-
 	file, fileInfo, err := fileCache.GetCachedFile(cid)
 	if err != nil {
-		lg.Warnf("Open cache file failed, %s, %v", cacheFilePath, err)
+		lg.Warnf("Open cache file failed, %s, %v", cid, err)
 		throwError(iris.StatusInternalServerError, "Open file failed", ctx)
 		return
 	}
 	defer file.Close()
 
 	lg.Info("Read file from cache, ", cid)
+
+	// 更新文件在缓存中的最后访问时间（该时间用于清理缓存）
+	defer func() {
+		go fileCache.UpdateFileAccessTimeToNow(cid)
+	}()
 
 	// 处理 Range 请求
 	rangeHeader := ctx.Request().Header.Get("Range")
@@ -118,7 +120,7 @@ func handleRangeRequest(ctx iris.Context, file *os.File, fileInfo fileCache.Cach
 		end = fileInfo.Size - 1
 	}
 	if matches[1] == "" && matches[2] != "" {
-		start = fileInfo.Size - end
+		start = fileInfo.Size - end - 1
 		end = fileInfo.Size - 1
 	}
 
@@ -127,8 +129,8 @@ func handleRangeRequest(ctx iris.Context, file *os.File, fileInfo fileCache.Cach
 		return
 	}
 
-	if end > fileInfo.Size {
-		end = fileInfo.Size
+	if end >= fileInfo.Size {
+		end = fileInfo.Size - 1
 	}
 
 	isRangeStart = start == 0

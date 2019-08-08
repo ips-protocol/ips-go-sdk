@@ -45,17 +45,23 @@ func GetVideoInfo(filePath string, mediaInfo *MediaInfo) (err error) {
 	}
 
 	// 解析返回的流信息
-	isParsedVideo := false // 是否已经解析过视频流，避免重复解析
-	for _, streamInfo := range info.Streams {
-		if !isParsedVideo && streamInfo.CodecType == "video" {
-			isParsedVideo = true
+	var videoCodec, audioCodec string
 
-			mediaInfo.Type = streamInfo.CodecName
+	for _, streamInfo := range info.Streams {
+		if videoCodec == "" && streamInfo.CodecType == "video" {
+			videoCodec = streamInfo.CodecName
+
 			mediaInfo.Width = streamInfo.Width
 			mediaInfo.Height = streamInfo.Height
 			mediaInfo.Duration = streamInfo.Duration
 		}
+
+		if audioCodec == "" && streamInfo.CodecType == "audio" {
+			// 在音频编码前添加左斜线，避免在最终拼接 Type 时由于音频编码为空导致 Type 以左斜线结尾
+			audioCodec = "/" + streamInfo.CodecName
+		}
 	}
+	mediaInfo.Type = videoCodec + audioCodec
 
 	return
 }

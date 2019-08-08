@@ -6,6 +6,7 @@ require (
 	github.com/Shopify/goreferrer v0.0.0-20181106222321-ec9c9a553398 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/aymerick/raymond v2.0.2+incompatible // indirect
+	github.com/btcsuite/btcd v0.0.0-20190523000118-16327141da8c // indirect
 	github.com/cespare/cp v1.1.1 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385 // indirect
@@ -23,7 +24,7 @@ require (
 	github.com/ipfs/go-ipfs v0.4.21
 	github.com/ipfs/go-ipfs-addr v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.1
-	github.com/ipweb-group/go-ipws-config v0.9.0
+	github.com/ipweb-group/go-ipws-config v0.9.1
 	github.com/iris-contrib/blackfriday v2.0.0+incompatible // indirect
 	github.com/iris-contrib/formBinder v0.0.0-20190104093907-fbd5963f41e1 // indirect
 	github.com/iris-contrib/go.uuid v2.0.0+incompatible // indirect
@@ -38,11 +39,11 @@ require (
 	github.com/klauspost/compress v1.7.2 // indirect
 	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/klauspost/reedsolomon v1.9.2
-	github.com/libp2p/go-libp2p-core v0.0.8
 	github.com/libp2p/go-libp2p-crypto v0.0.2
 	github.com/libp2p/go-libp2p-peer v0.1.1
 	github.com/libp2p/go-libp2p-protocol v0.0.1
 	github.com/microcosm-cc/bluemonday v1.0.2 // indirect
+	github.com/minio/sha256-simd v0.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
@@ -71,6 +72,6 @@ require (
 
 go 1.12
 
-replace github.com/ipfs/go-ipfs v0.4.21 => github.com/ipweb-group/go-ipws v0.9.2
+replace github.com/ipfs/go-ipfs v0.4.21 => github.com/ipweb-group/go-ipws v0.9.3
 
 replace github.com/ethereum/go-ethereum v1.8.7 => github.com/ipweb-group/ipw v1.9.0
