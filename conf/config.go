@@ -16,6 +16,7 @@ type Config struct {
 	NodeRefreshWorkers          int            `json:"node_refresh_workers"`
 	NodeRequestTimeoutInSecond  int            `json:"node_request_timeout_in_second"`
 	NodeCloseIntervalInSecond   int            `json:"node_close_interval_in_second"`
+	ConnQuotaPerNode            int            `json:"conn_quota_per_node"`
 	BlockUploadWorkers          int            `json:"block_upload_workers"`
 	BlockDownloadWorkers        int            `json:"block_download_workers"`
 	ContractConf                ContractConfig `json:"contract_conf"`

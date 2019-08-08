@@ -28,7 +28,7 @@ const (
 	NodeStatusClosed
 )
 
-type Nodes []Node
+type Nodes []*Node
 
 type Node struct {
 	Id              string
@@ -40,6 +40,7 @@ type Node struct {
 	ManualSetWeight int
 	SuccessedTimes  int
 	FailedTimes     int
+	ConnQuota       int
 	Client          *shell.Shell
 }
 
@@ -48,7 +49,7 @@ func (ns Nodes) Len() int {
 }
 
 func (ns Nodes) Less(i, j int) bool {
-	return ns[i].Id < ns[j].Id
+	return ns[i].ConnQuota > ns[j].ConnQuota
 }
 
 func (ns Nodes) Swap(i, j int) {
@@ -61,12 +62,17 @@ func (ns Nodes) Sort() {
 
 func (c Client) Add(r io.Reader) (id string, err error) {
 	n, err := c.NodeByManulWeight()
+	defer func() {
+		fmt.Printf("upload node id: %s, block hash: %s, err: %+v\n", n.Id, id, err)
+		c.NodesAllocCond.L.Lock()
+		c.Nodes[n.Id].ConnQuota += 1
+		c.NodesAllocCond.L.Unlock()
+		c.NodesAllocCond.Broadcast()
+	}()
 	if err != nil {
 		return
 	}
-	defer func() {
-		fmt.Printf("upload node id: %s, block hash: %s, err: %+v\n", n.Id, id, err)
-	}()
+	fmt.Printf("get available node id: %s, remain connects quota: %d\n", n.Id, n.ConnQuota)
 
 	nr := reader.NewReader(r)
 	start := time.Now()
@@ -133,26 +139,47 @@ func (c *Client) RandomNode() (n *Node, err error) {
 }
 
 func (c *Client) NodeByManulWeight() (n *Node, err error) {
+	c.NodesAllocCond.L.Lock()
+	defer func() {
+		if err == nil {
+			n.ConnQuota -= 1
+		}
+		c.NodesAllocCond.L.Unlock()
+	}()
+
 	ns, err := c.GetAvailableOrClosedNodes()
 	if err != nil {
 		return
 	}
+	Nodes(ns).Sort()
+	if len(ns) == 0 || ns[0].ConnQuota <= 0 {
+		c.NodesAllocCond.Wait()
+	}
+	Nodes(ns).Sort()
+
+	var availNodes []*Node
+	connQuotaFlag := ns[0].ConnQuota
+	for i := range ns {
+		if ns[i].ConnQuota < connQuotaFlag {
+			break
+		}
+
+		availNodes = append(availNodes, ns[i])
+	}
 
 	var weightSum int
-	for i := range ns {
-		weightSum += ns[i].ManualSetWeight
+	for i := range availNodes {
+		weightSum += availNodes[i].ManualSetWeight
 	}
 
 	rand.Seed(time.Now().UnixNano())
 	r := rand.Intn(weightSum)
-	for i := range ns {
-		r -= ns[i].ManualSetWeight
+	for i := range availNodes {
+		r -= availNodes[i].ManualSetWeight
 		if r <= 0 {
-			n = ns[i]
+			n = availNodes[i]
 			if n.Status == NodeStatusClosed {
-				c.NodesMux[n.Id].Lock()
 				n, err = c.NewNode(n.Id)
-				c.NodesMux[n.Id].Unlock()
 			}
 			return
 		}
@@ -313,6 +340,7 @@ func (c *Client) refreshNodes() error {
 
 			n, err := c.NewNode(id)
 			nodeAccMux.Lock()
+			n.ConnQuota = c.ConnQuotaPerNode
 			c.Nodes[id] = n
 			c.NodesMux[id] = &sync.RWMutex{}
 			nodeAccMux.Unlock()
