@@ -348,7 +348,7 @@ func (c *Client) refreshNodes() error {
 			}()
 
 			id := peerId.Pretty()
-			if _, ok := c.Nodes[id]; ok {
+			if n, ok := c.Nodes[id]; ok && n.Status == NodeStatusAvailable {
 				return
 			}
 
