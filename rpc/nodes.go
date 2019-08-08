@@ -62,8 +62,8 @@ func (ns Nodes) Sort() {
 func (c Client) Add(r io.Reader) (id string, err error) {
 	n, err := c.NodeByManulWeight()
 	defer func() {
-		fmt.Printf("upload node id: %s, block hash: %s, err: %+v\n", n.Id, id, err)
 		if err != nil {
+			fmt.Printf("upload node id: nil, block hash: nil, err: %+v\n", err)
 			c.NodesMux[n.Id].Lock()
 			n.FailedTimes++
 			failedRate := float64(n.FailedTimes) / float64(n.FailedTimes+n.SuccessedTimes)
@@ -71,6 +71,8 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 				n.Status = NodeStatusUnavailable
 			}
 			c.NodesMux[n.Id].Unlock()
+		} else {
+			fmt.Printf("upload node id: %s, block hash: %s\n", n.Id, id)
 		}
 
 		c.NodesAllocCond.L.Lock()
