@@ -96,12 +96,11 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.WalletPubKey = pubKey
 
 	resp, err := http.Get(NodeWeightInfoUrl)
-	if err != nil {
-		return
-	}
-	err = json.NewDecoder(resp.Body).Decode(&cli.NodesWeightInfo)
-	if err != nil {
-		return
+	if err == nil {
+		err = json.NewDecoder(resp.Body).Decode(&cli.NodesWeightInfo)
+		if err != nil {
+			return
+		}
 	}
 
 	c, err := storage.NewClient(cfg.ContractConf)

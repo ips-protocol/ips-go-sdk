@@ -190,7 +190,6 @@ func (c *Client) NodeByManulWeight() (n *Node, err error) {
 	for i := range availNodes {
 		weightSum += availNodes[i].ManualSetWeight
 	}
-
 	rand.Seed(time.Now().UnixNano())
 	r := rand.Intn(weightSum)
 	for i := range availNodes {
@@ -268,10 +267,11 @@ func (c *Client) GetNodes(status NodeStatus) (ns []*Node, err error) {
 
 func (c *Client) NewNode(peerId string) (n *Node, err error) {
 	n = &Node{
-		Id:         peerId,
-		Status:     NodeStatusUnavailable,
-		CreateTime: time.Now(),
-		UpdateTime: time.Now(),
+		Id:              peerId,
+		Status:          NodeStatusUnavailable,
+		ManualSetWeight: 1,
+		CreateTime:      time.Now(),
+		UpdateTime:      time.Now(),
 	}
 
 	port, err := netools.GetFreePort()
@@ -358,7 +358,10 @@ func (c *Client) refreshNodes() error {
 			c.NodesMux[id] = &sync.RWMutex{}
 
 			if w, ok := c.NodesWeightInfo[id]; ok {
-				n.ManualSetWeight += w + 1
+				if w < 0 {
+					w = 0
+				}
+				n.ManualSetWeight = w + 1
 			}
 			return
 		}(p)
