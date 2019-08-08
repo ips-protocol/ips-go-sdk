@@ -27,12 +27,14 @@ const (
 type Client struct {
 	Nodes                map[string]*Node
 	NodesMux             map[string]*sync.RWMutex
+	NodesAllocCond       *sync.Cond
 	NodesWeightInfo      map[string]int
 	NodeRefreshTime      time.Time
 	NodeRefreshDuration  time.Duration
 	NodeCloseDuration    time.Duration
 	NodeRequestTimeout   time.Duration
 	NodeRefreshWorkers   int
+	ConnQuotaPerNode     int
 	BlockUploadWorkers   int
 	BlockDownloadWorkers int
 	WalletPubKey         string
@@ -50,6 +52,8 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli = &Client{IpfsNode: n}
 	cli.Nodes = make(map[string]*Node)
 	cli.NodesMux = make(map[string]*sync.RWMutex)
+	cli.NodesAllocCond = sync.NewCond(new(sync.Mutex))
+
 	if cfg.NodeRefreshIntervalInSecond == 0 {
 		cfg.NodeRefreshIntervalInSecond = 600
 	}
@@ -79,6 +83,11 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 		cfg.BlockDownloadWorkers = 5
 	}
 	cli.BlockDownloadWorkers = cfg.BlockDownloadWorkers
+
+	if cfg.ConnQuotaPerNode == 0 {
+		cfg.ConnQuotaPerNode = 2
+	}
+	cli.ConnQuotaPerNode = 2
 
 	pubKey, err := GetWalletPubKey(cfg.ContractConf.ClientKeyHex)
 	if err != nil {
