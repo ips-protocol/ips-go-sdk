@@ -8,8 +8,8 @@ import (
 )
 
 type ContractConfig struct {
-	ClientKeyHex     string `json:"client_key_hex"`
-	ContractNodeAddr string `json:"contract_node_addr"`
+	ClientKeyHex     string `json:"client_key_hex" yaml:"client_key_hex"`
+	ContractNodeAddr string `json:"contract_node_addr" yaml:"contract_node_addr"`
 }
 
 func (cfg ContractConfig) GetClientKey() string {
