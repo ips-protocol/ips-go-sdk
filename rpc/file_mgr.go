@@ -3,6 +3,7 @@ package rpc
 import (
 	"crypto/sha256"
 	"io"
+	"io/ioutil"
 
 	"github.com/ipweb-group/go-sdk/file"
 )
@@ -33,17 +34,11 @@ func (c *Client) Remove(fHash string) error {
 	return err
 }
 
-func (c *Client) GetCid(rdr io.Reader, fname string, fsize int64) (cid string, err error) {
-	return c.GetCidByClientKey(c.Client.GetClientKey(), rdr, fname, fsize)
+func (c *Client) GetCid(rdr io.Reader) (cid string, err error) {
+	return c.GetCidByClientKey(c.Client.GetClientKey(), rdr)
 }
 
-func (c *Client) GetCidByClientKey(clientKey string, rdr io.Reader, fname string, fsize int64) (cid string, err error) {
-	dataShards, parShards, _ := file.BlockCount(fsize)
-	mgr, err := file.NewBlockMgr(dataShards, parShards)
-	if err != nil {
-		return
-	}
-
+func (c *Client) GetCidByClientKey(clientKey string, rdr io.Reader) (cid string, err error) {
 	h := sha256.New()
 	pubKey, err := GetWalletPubKey(clientKey)
 	if err != nil {
@@ -56,7 +51,7 @@ func (c *Client) GetCidByClientKey(clientKey string, rdr io.Reader, fname string
 
 	r := io.TeeReader(rdr, h)
 
-	_, err = mgr.RsEncode(r, file.DefaultMaxFsizeInMem)
+	_, err = ioutil.ReadAll(r)
 	if err != nil {
 		return
 	}
