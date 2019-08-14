@@ -5,7 +5,5 @@ import (
 )
 
 func main() {
-	//conf.LoadConfig("./websvr/conf.json")
-
-	websvr.Run()
+	websvr.Run("./websvr/conf.json")
 }

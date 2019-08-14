@@ -33,15 +33,15 @@ func (c *Client) UploadWithPathByClientKey(clientKey string, fpath string) (cid 
 		return
 	}
 
-	cid, err = c.UploadByClientKey(clientKey, fh, fname, fi.Size())
+	cid, err = c.uploadByClientKey(clientKey, fh, fname, fi.Size())
 	return
 }
 
 func (c *Client) Upload(rdr io.Reader, fname string, fsize int64) (cid string, err error) {
-	return c.UploadByClientKey(c.Client.GetClientKey(), rdr, fname, fsize)
+	return c.uploadByClientKey(c.Client.GetClientKey(), rdr, fname, fsize)
 }
 
-func (c *Client) UploadByClientKey(clientKey string, rdr io.Reader, fname string, fsize int64) (cid string, err error) {
+func (c *Client) uploadByClientKey(clientKey string, rdr io.Reader, fname string, fsize int64) (cid string, err error) {
 	dataShards, parShards, shardSize := file.BlockCount(fsize)
 	mgr, err := file.NewBlockMgr(dataShards, parShards)
 	if err != nil {
@@ -68,6 +68,53 @@ func (c *Client) UploadByClientKey(clientKey string, rdr io.Reader, fname string
 	if err != nil {
 		return
 	}
+
+	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
+	meta.WalletPubKey = pubKey
+	shardSize += int64(len(meta.Encode(0)))
+	shards := dataShards + parShards
+	_, err = c.NewUploadJobByClientKey(clientKey, cid, fsize, shards, shardSize)
+	if err != nil {
+		log.Println("NewUploadJob Error:", err)
+		return
+	}
+
+	err = c.upload(fhs, meta)
+	if err == nil {
+		return
+	}
+
+	err1 := c.DeleteFile(cid)
+	if err1 != nil {
+		err = err1
+	}
+	return
+}
+
+func (c *Client) UploadByClientKey(clientKey string, rdr io.Reader, fname string, fsize int64, preCid string) (cid string, err error) {
+	dataShards, parShards, shardSize := file.BlockCount(fsize)
+	mgr, err := file.NewBlockMgr(dataShards, parShards)
+	if err != nil {
+		return
+	}
+
+	h := sha256.New()
+	pubKey, err := GetWalletPubKey(clientKey)
+	if err != nil {
+		return
+	}
+	_, err = h.Write([]byte(pubKey))
+	if err != nil {
+		return
+	}
+	r := io.TeeReader(rdr, h)
+
+	fhs, err := mgr.RsEncode(r, file.DefaultMaxFsizeInMem)
+	if err != nil {
+		return
+	}
+
+	cid = preCid
 
 	meta := metafile.NewMeta(fname, cid, fsize, uint32(dataShards), uint32(parShards))
 	meta.WalletPubKey = pubKey

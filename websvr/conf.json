@@ -3,21 +3,12 @@
   "server_write_timeout_in_second": 300,
   "server_read_timeout_in_second": 15,
   "node_conf": {
-    "nodes_refresh_interval_in_minute": 1,
+    "node_refresh_interval_in_second": 300,
     "node_request_timeout_in_second": 300,
     "block_upload_workers": 8,
     "contract_conf": {
         "client_key_hex": "B2FE66D78810869A64CAAE7B1F2C60CCA3AC2F2261DA2F1DE7040DE3F1FEDA9C",
         "contract_node_addr": "https://mainnet.ipweb.top"
     }
-  },
-  "redis_config": {
-    "addr": "localhost:6379",
-    "password": "",
-    "db": 0
-  },
-  "external": {
-    "ffmpeg": "docker run --rm -t -v $PWD:$PWD -w $PWD jrottenberg/ffmpeg:4.1-ubuntu",
-    "ffprobe": "docker run --rm -t -v $PWD:$PWD -w $PWD --entrypoint ffprobe jrottenberg/ffmpeg:4.1-ubuntu"
   }
 }
