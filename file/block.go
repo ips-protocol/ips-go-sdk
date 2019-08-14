@@ -48,6 +48,16 @@ func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *Block
 }
 
 func (m *BlockMgr) RsEncode(r io.Reader, memThreshold int64) (fhs []File, err error) {
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		for i := range fhs {
+			fhs[i].Close()
+		}
+	}()
+
 	fh, fsize, err := FileStream(r, memThreshold)
 	if err != nil {
 		return
