@@ -47,16 +47,16 @@ func (s *Service) FileUpload(ctx iris.Context) {
 func (s *Service) GetCid(ctx iris.Context) {
 	lg := ctx.Application().Logger()
 
-	file, fi, err := ctx.FormFile("file")
+	file, _, err := ctx.FormFile("file")
 	if err != nil {
 		lg.Error("FormFile failed:", err)
 		return
 	}
 	defer file.Close()
 
-	cid, err := s.Node.GetCid(file, fi.Filename, fi.Size)
+	cid, err := s.Node.GetCid(file)
 	if err != nil {
-		lg.Error("upload to ipws failed: ", err)
+		lg.Error("get cid failed: ", err)
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.JSON(iris.Map{"err": err.Error()})
 		return
@@ -65,7 +65,6 @@ func (s *Service) GetCid(ctx iris.Context) {
 	ctx.JSON(iris.Map{"cid": cid})
 	return
 }
-
 
 func (s *Service) FileStreamRead(ctx iris.Context) {
 	lg := ctx.Application().Logger()
