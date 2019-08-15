@@ -27,7 +27,7 @@ const (
 type Client struct {
 	Nodes                map[string]*Node
 	NodesMux             map[string]*sync.RWMutex
-	NodesAddMux          *sync.RWMutex
+	NodesRwMux           *sync.RWMutex
 	NodesAllocCond       *sync.Cond
 	NodesWeightInfo      map[string]int
 	NodeRefreshTime      time.Time
@@ -53,7 +53,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli = &Client{IpfsNode: n}
 	cli.Nodes = make(map[string]*Node)
 	cli.NodesMux = make(map[string]*sync.RWMutex)
-	cli.NodesAddMux = &sync.RWMutex{}
+	cli.NodesRwMux = &sync.RWMutex{}
 	cli.NodesAllocCond = sync.NewCond(new(sync.Mutex))
 
 	if cfg.NodeRefreshIntervalInSecond == 0 {

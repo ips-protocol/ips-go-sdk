@@ -353,16 +353,19 @@ func (c *Client) refreshNodes() error {
 			}()
 
 			id := peerId.Pretty()
-			if n, ok := c.Nodes[id]; ok && n.Status == NodeStatusAvailable {
+			c.NodesRwMux.RLock()
+			n, ok := c.Nodes[id]
+			c.NodesRwMux.RUnlock()
+			if ok && n.Status == NodeStatusAvailable {
 				return
 			}
 
-			n, _ := c.NewNode(id)
+			n, _ = c.NewNode(id)
 			n.ConnQuota = c.ConnQuotaPerNode
-			c.NodesAddMux.Lock()
+			c.NodesRwMux.Lock()
 			c.Nodes[id] = n
 			c.NodesMux[id] = &sync.RWMutex{}
-			c.NodesAddMux.Unlock()
+			c.NodesRwMux.Unlock()
 
 			if w, ok := c.NodesWeightInfo[id]; ok {
 				if w < 0 {
