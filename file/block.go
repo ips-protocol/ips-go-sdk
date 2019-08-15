@@ -119,6 +119,15 @@ func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []File, err error) {
 	if size == 0 {
 		return fhs, ErrShortData
 	}
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		for i := range fhs {
+			fhs[i].Close()
+		}
+	}()
 
 	fhs, err = NewTmpFiles(m.DataShards)
 	if err != nil {

@@ -31,6 +31,7 @@ type Nodes []*Node
 
 type Node struct {
 	Id              string
+	Port            int
 	Status          NodeStatus
 	CreateTime      time.Time
 	UpdateTime      time.Time
@@ -62,8 +63,11 @@ func (ns Nodes) Sort() {
 func (c Client) Add(r io.Reader) (id string, err error) {
 	n, err := c.NodeByManulWeight()
 	defer func() {
+		if n == nil {
+			fmt.Printf("get upload node failed: %+v\n", err)
+		}
+
 		if err != nil {
-			fmt.Printf("upload node id: nil, block hash: nil, err: %+v\n", err)
 			c.NodesMux[n.Id].Lock()
 			n.FailedTimes++
 			failedRate := float64(n.FailedTimes) / float64(n.FailedTimes+n.SuccessedTimes)
@@ -71,14 +75,14 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 				n.Status = NodeStatusUnavailable
 			}
 			c.NodesMux[n.Id].Unlock()
-		} else {
-			fmt.Printf("upload node id: %s, block hash: %s\n", n.Id, id)
 		}
 
 		c.NodesAllocCond.L.Lock()
 		c.Nodes[n.Id].ConnQuota += 1
 		c.NodesAllocCond.L.Unlock()
 		c.NodesAllocCond.Broadcast()
+
+		fmt.Printf("upload node id: %s, block hash: %s, error: %+v\n", n.Id, id, err)
 	}()
 	if err != nil {
 		return
@@ -155,6 +159,7 @@ func (c *Client) NodeByManulWeight() (n *Node, err error) {
 		c.NodesAllocCond.L.Unlock()
 	}()
 
+reTry:
 	ns, err := c.GetAvailableOrClosedNodes()
 	if err != nil {
 		return
@@ -167,15 +172,7 @@ func (c *Client) NodeByManulWeight() (n *Node, err error) {
 	Nodes(ns).Sort()
 	if ns[0].ConnQuota <= 0 {
 		c.NodesAllocCond.Wait()
-		ns, err := c.GetAvailableOrClosedNodes()
-		if err != nil {
-			return nil, err
-		}
-		if len(ns) == 0 {
-			err = ErrNodeNotFound
-			return nil, err
-		}
-		Nodes(ns).Sort()
+		goto reTry
 	}
 
 	var availNodes []*Node
@@ -291,11 +288,12 @@ func (c *Client) NewNode(peerId string) (n *Node, err error) {
 	cli.SetTimeout(c.NodeRequestTimeout)
 	info, err := cli.ID()
 	if err != nil {
-		c.P2PClose(0, peerId)
+		c.P2PClose(port, peerId)
 		fmt.Println("bad peer: ", peerId, " err: ", err)
 		return
 	}
 
+	n.Port = port
 	n.Status = NodeStatusAvailable
 	n.Client = cli
 	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
@@ -327,8 +325,9 @@ func (c *Client) closeNodesTick() {
 				c.NodesMux[n.Id].Lock()
 				dur := time.Now().Sub(n.UpdateTime.Add(c.NodeCloseDuration))
 				if n.Status == NodeStatusAvailable && dur.Seconds() > 0 {
+					fmt.Printf("close node id: %s, update time: %s", n.Id, n.UpdateTime)
 					n.Status = NodeStatusClosed
-					c.P2PClose(0, n.Id)
+					c.P2PClose(n.Port, n.Id)
 				}
 				c.NodesMux[n.Id].Unlock()
 			}
