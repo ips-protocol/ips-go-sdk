@@ -65,6 +65,7 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 	defer func() {
 		if n == nil {
 			fmt.Printf("get upload node failed: %+v\n", err)
+			return
 		}
 
 		if err != nil {
@@ -75,6 +76,9 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 				n.Status = NodeStatusUnavailable
 			}
 			c.NodesMux[n.Id].Unlock()
+
+			fmt.Printf("node set unavailable id: %s, failed times: %d, success times: %d, err: %+v\n",
+				n.Id, n.FailedTimes, n.SuccessedTimes, err)
 		}
 
 		c.NodesAllocCond.L.Lock()
