@@ -3,6 +3,7 @@ package file
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -129,7 +130,14 @@ type FileCloser struct {
 
 func (r *FileCloser) Close() error {
 	name := r.File.Name()
-	r.File.Close()
-	os.Remove(name)
-	return nil
+	err := r.File.Close()
+	if err != nil {
+		fmt.Println("file: ", name, "close err:", err)
+		return err
+	}
+
+	err = os.Remove(name)
+	fmt.Println("file: ", name, "remove err:", err)
+
+	return err
 }

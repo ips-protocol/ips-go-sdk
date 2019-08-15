@@ -359,8 +359,10 @@ func (c *Client) refreshNodes() error {
 
 			n, _ := c.NewNode(id)
 			n.ConnQuota = c.ConnQuotaPerNode
+			c.NodesAddMux.Lock()
 			c.Nodes[id] = n
 			c.NodesMux[id] = &sync.RWMutex{}
+			c.NodesAddMux.Unlock()
 
 			if w, ok := c.NodesWeightInfo[id]; ok {
 				if w < 0 {
