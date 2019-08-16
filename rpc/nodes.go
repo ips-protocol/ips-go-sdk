@@ -74,11 +74,12 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 			failedRate := float64(n.FailedTimes) / float64(n.FailedTimes+n.SuccessedTimes)
 			if failedRate >= 0.2 {
 				n.Status = NodeStatusUnavailable
+				fmt.Printf("node be set unavailable, failed rate: %f", failedRate)
 			}
 			c.NodesMux[n.Id].Unlock()
 
-			fmt.Printf("node set unavailable id: %s, failed times: %d, success times: %d, err: %+v\n",
-				n.Id, n.FailedTimes, n.SuccessedTimes, err)
+			fmt.Printf("upload failed id: %s, port: %d, failed times: %d, success times: %d, err: %+v\n",
+				n.Id, n.Port, n.FailedTimes, n.SuccessedTimes, err)
 		}
 
 		c.NodesAllocCond.L.Lock()
@@ -86,12 +87,12 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 		c.NodesAllocCond.L.Unlock()
 		c.NodesAllocCond.Broadcast()
 
-		fmt.Printf("upload node id: %s, block hash: %s, error: %+v\n", n.Id, id, err)
+		fmt.Printf("upload node id: %s, port: %d, block hash: %s, error: %+v\n", n.Id, n.Port, id, err)
 	}()
 	if err != nil {
 		return
 	}
-	fmt.Printf("get available node id: %s, remain connects quota: %d\n", n.Id, n.ConnQuota)
+	fmt.Printf("get available node id: %s, port: %d, remain connects quota: %d\n", n.Id, n.Port, n.ConnQuota)
 
 	nr := reader.NewReader(r)
 	start := time.Now()
