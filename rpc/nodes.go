@@ -78,8 +78,8 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 			}
 			c.NodesMux[n.Id].Unlock()
 
-			fmt.Printf("upload failed id: %s, port: %d, failed times: %d, success times: %d, err: %+v\n",
-				n.Id, n.Port, n.FailedTimes, n.SuccessedTimes, err)
+			fmt.Printf("upload failed id: %s, port: %d, failed times: %d, success times: %d, clinet: %+v, err: %+v\n",
+				n.Id, n.Port, n.FailedTimes, n.SuccessedTimes, n.Client, err)
 		}
 
 		c.NodesAllocCond.L.Lock()
@@ -291,17 +291,16 @@ func (c *Client) NewNode(peerId string) (n *Node, err error) {
 
 	cli := shell.NewShell(url)
 	cli.SetTimeout(c.NodeRequestTimeout)
-	info, err := cli.ID()
 	if err != nil {
 		c.P2PClose(port, peerId)
-		fmt.Println("bad peer: ", peerId, " err: ", err)
+		fmt.Println("bad peer: ", peerId, "port: ", port, " err: ", err)
 		return
 	}
 
 	n.Port = port
 	n.Status = NodeStatusAvailable
 	n.Client = cli
-	fmt.Println("p2p peer: ", peerId, " addr: ", info.Addresses)
+	fmt.Println("p2p peer: ", peerId, " port: ", port)
 	return
 }
 
@@ -364,8 +363,8 @@ func (c *Client) refreshNodes() error {
 			n, _ = c.NewNode(id)
 			n.ConnQuota = c.ConnQuotaPerNode
 			c.NodesRwMux.Lock()
-			c.Nodes[id] = n
 			c.NodesMux[id] = &sync.RWMutex{}
+			c.Nodes[id] = n
 			c.NodesRwMux.Unlock()
 
 			if w, ok := c.NodesWeightInfo[id]; ok {
@@ -397,9 +396,9 @@ func (c *Client) P2PForward(port int, peerId string) error {
 func (c *Client) P2PClose(port int, peerId string) error {
 	listenOpt := "/ip4/127.0.0.1/tcp/" + strconv.Itoa(port)
 	targetOpt := "/ipfs/" + peerId
-	return p2p.Close(c.IpfsNode.P2P, false, "", listenOpt, targetOpt)
+	return p2p.Close(c.IpfsNode.P2P, false, P2pProtocl, listenOpt, targetOpt)
 }
 
 func (c *Client) P2PCloseAll() error {
-	return p2p.Close(c.IpfsNode.P2P, true, "", "", "")
+	return p2p.Close(c.IpfsNode.P2P, true, P2pProtocl, "", "")
 }
