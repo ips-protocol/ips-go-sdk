@@ -37,7 +37,7 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	rs, err := blockMgr.ECShards(f, fi.Size())
 	assert.Equal(t, err, nil)
 
-	ok, err := blockMgr.Verify(rs)
+	ok, err := blockMgr.StreamEncoder.Verify(rs)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, nil, err)
 
@@ -48,7 +48,7 @@ func TestBlockMgr_SplitFile(t *testing.T) {
 	fileContent, err := ioutil.ReadAll(f)
 	assert.Equal(t, nil, err)
 	fileContent2 := bytes.NewBuffer(nil)
-	blockMgr.Join(fileContent2, rs2, fi.Size())
+	blockMgr.StreamEncoder.Join(fileContent2, rs2, fi.Size())
 	bytes.Equal(fileContent2.Bytes(), fileContent)
 }
 
@@ -73,17 +73,20 @@ func TestSplit(t *testing.T) {
 	fh, err := os.Open(fp)
 	assert.NoError(t, err)
 
-	fi, err := os.Stat(fp)
+	sf, fsize, err := FileStream(fh, DefaultMaxFsizeInMem)
 	assert.NoError(t, err)
 
-	dataShards, parShards, _ := BlockCount(fi.Size())
+	dataShards, parShards, _ := BlockCount(fsize)
 	mgr, err := NewBlockMgr(dataShards, parShards)
 	assert.NoError(t, err)
 
-	fhs1, err := mgr.Split(fh, fi.Size())
+	fhs1, err := mgr.Split(sf, fsize)
 	assert.NoError(t, err)
 
-	fhs2, err := mgr.Split2(fh, fi.Size())
+	_, err = sf.Seek(0, 0)
+	assert.NoError(t, err)
+
+	fhs2, err := mgr.Split2(sf, fsize)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fhs1), len(fhs2))
 

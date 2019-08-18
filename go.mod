@@ -37,6 +37,7 @@ require (
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/ryanuber/columnize v2.1.0+incompatible // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
+	github.com/stretchr/testify v1.3.0
 )
 
 go 1.12
