@@ -2,6 +2,7 @@ package file
 
 import (
 	"bytes"
+	"crypto/md5"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -62,4 +63,47 @@ func TestCalCid(t *testing.T) {
 	fmt.Println("========> cal cid cost:", time.Now().Sub(n))
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, "", cid)
+}
+
+func TestSplit(t *testing.T) {
+	fp := os.Getenv("TEST_SPLIT_FILE_PATH")
+	if fp == "" {
+		return
+	}
+	fh, err := os.Open(fp)
+	assert.NoError(t, err)
+
+	fi, err := os.Stat(fp)
+	assert.NoError(t, err)
+
+	dataShards, parShards, _ := BlockCount(fi.Size())
+	mgr, err := NewBlockMgr(dataShards, parShards)
+	assert.NoError(t, err)
+
+	fhs1, err := mgr.Split(fh, fi.Size())
+	assert.NoError(t, err)
+
+	fhs2, err := mgr.Split2(fh, fi.Size())
+	assert.NoError(t, err)
+	assert.Equal(t, len(fhs1), len(fhs2))
+
+	defer func() {
+		Files(fhs1).Close()
+		Files(fhs2).Close()
+	}()
+
+	for i := range fhs1 {
+		h1 := md5.New()
+		_, err := io.Copy(h1, fhs1[i])
+		assert.NoError(t, err)
+		h1Md5 := h1.Sum(nil)
+
+		h2 := md5.New()
+		_, err = io.Copy(h2, fhs2[i])
+		assert.NoError(t, err)
+		h2Md5 := h2.Sum(nil)
+
+		assert.Equal(t, h1Md5, h2Md5)
+	}
+
 }
