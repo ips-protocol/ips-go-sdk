@@ -18,6 +18,22 @@ type File interface {
 	io.Writer
 }
 
+type Files []File
+
+func (fs Files) Close() error {
+	var err error
+	for i := range fs {
+		if fs[i] == nil {
+			continue
+		}
+		err1 := fs[i].Close()
+		if err1 != nil {
+			err = err1
+		}
+	}
+	return err
+}
+
 var memBuf = sync.Pool{
 	New: func() interface{} { return new(bytes.Buffer) },
 }
@@ -99,7 +115,32 @@ func (rc bytesFile) Close() error {
 }
 
 func (rc bytesFile) Write(b []byte) (n int, err error) {
-	err = errors.New("not implemented")
+	err = errors.New("bytesFile not implemented")
+	return
+}
+
+func newSectionFiles(r io.ReaderAt, sectionSize int64, sectionCount int) []File {
+	var fhs []File
+	for i := 0; i < sectionCount; i++ {
+		fh := sectionFile{
+			SectionReader: io.NewSectionReader(r, int64(i)*sectionSize, sectionSize),
+		}
+		fhs = append(fhs, fh)
+	}
+	return fhs
+}
+
+type sectionFile struct {
+	*io.SectionReader
+	closer func() error
+}
+
+func (sr sectionFile) Close() error {
+	return nil
+}
+
+func (sr sectionFile) Write(b []byte) (n int, err error) {
+	err = errors.New("sectionFile not implemented")
 	return
 }
 
@@ -131,8 +172,8 @@ type FileCloser struct {
 func (r *FileCloser) Close() error {
 	name := r.File.Name()
 	err := r.File.Close()
+	fmt.Println("file: ", name, "close err:", err)
 	if err != nil {
-		fmt.Println("file: ", name, "close err:", err)
 		return err
 	}
 
