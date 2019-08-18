@@ -53,9 +53,7 @@ func (m *BlockMgr) RsEncode(r io.Reader, memThreshold int64) (fhs []File, err er
 			return
 		}
 
-		for i := range fhs {
-			fhs[i].Close()
-		}
+		Files(fhs).Close()
 	}()
 
 	fh, fsize, err := FileStream(r, memThreshold)
@@ -84,7 +82,7 @@ func (m *BlockMgr) RsEncode(r io.Reader, memThreshold int64) (fhs []File, err er
 		return fhs, nil
 	}
 
-	dataFhs, err := m.Split(fh, fsize)
+	dataFhs, err := m.Split2(fh, fsize)
 	if err != nil {
 		return
 	}
@@ -115,6 +113,38 @@ func (m *BlockMgr) RsEncode(r io.Reader, memThreshold int64) (fhs []File, err er
 	return
 }
 
+func (m *BlockMgr) Split2(fh File, size int64) (fhs []File, err error) {
+	if size == 0 {
+		return fhs, ErrShortData
+	}
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		Files(fhs).Close()
+	}()
+
+	shards := m.DataShards + m.ParShards
+	perShard := (size + int64(m.DataShards) - 1) / int64(m.DataShards)
+
+	paddingLen := int64(shards)*perShard - size
+	padding := make([]byte, paddingLen)
+
+	_, err = fh.Seek(0, 2)
+	if err != nil {
+		return
+	}
+
+	_, err = io.Copy(fh, bytes.NewBuffer(padding))
+	if err != nil {
+		return
+	}
+
+	fhs = newSectionFiles(fh, perShard, m.DataShards)
+	return
+}
+
 func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []File, err error) {
 	if size == 0 {
 		return fhs, ErrShortData
@@ -125,6 +155,9 @@ func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []File, err error) {
 		}
 
 		for i := range fhs {
+			if fhs[i] == nil {
+				continue
+			}
 			fhs[i].Close()
 		}
 	}()
