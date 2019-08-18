@@ -63,6 +63,9 @@ func (c *Client) uploadByClientKey(clientKey string, rdr io.Reader, fname string
 	if err != nil {
 		return
 	}
+	defer func() {
+		file.Files(fhs).Close()
+	}()
 
 	cid, err = file.GetCidV1(h)
 	if err != nil {
