@@ -74,12 +74,11 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 			failedRate := float64(n.FailedTimes) / float64(n.FailedTimes+n.SuccessedTimes)
 			if failedRate >= 0.2 {
 				n.Status = NodeStatusUnavailable
-				fmt.Printf("node be set unavailable, failed rate: %f", failedRate)
 			}
 			c.NodesMux[n.Id].Unlock()
 
-			fmt.Printf("upload failed id: %s, port: %d, failed times: %d, success times: %d, clinet: %+v, err: %+v\n",
-				n.Id, n.Port, n.FailedTimes, n.SuccessedTimes, n.Client, err)
+			fmt.Printf("upload failed id: %s, port: %d, failed times: %d, success times: %d, err: %+v\n",
+				n.Id, n.Port, n.FailedTimes, n.SuccessedTimes, err)
 		}
 
 		c.NodesAllocCond.L.Lock()
@@ -291,6 +290,7 @@ func (c *Client) NewNode(peerId string) (n *Node, err error) {
 
 	cli := shell.NewShell(url)
 	cli.SetTimeout(c.NodeRequestTimeout)
+	_, err = cli.ID()
 	if err != nil {
 		c.P2PClose(port, peerId)
 		fmt.Println("bad peer: ", peerId, "port: ", port, " err: ", err)
