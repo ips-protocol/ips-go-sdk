@@ -22,9 +22,9 @@ var ErrNodeNotFound = errors.New("node not found")
 type NodeStatus int
 
 const (
-	NodeStatusUnavailable = iota
-	NodeStatusAvailable
-	NodeStatusClosed
+	NodeStatusUnavailable = iota // unavailable
+	NodeStatusOpen               // available
+	NodeStatusClosed             // available
 )
 
 type Nodes []*Node
@@ -33,8 +33,8 @@ type Node struct {
 	Id              string
 	Port            int
 	Status          NodeStatus
-	CreateTime      time.Time
 	UpdateTime      time.Time
+	AccessTime      time.Time
 	UploadBytes     int64
 	UploadDur       time.Duration
 	ManualSetWeight int
@@ -104,14 +104,13 @@ func (c Client) Add(r io.Reader) (id string, err error) {
 	n.UploadDur += time.Now().Sub(start)
 	n.UploadBytes += nr.N()
 	n.SuccessedTimes++
-	n.UpdateTime = time.Now()
 	c.NodesMux[n.Id].Unlock()
 
 	return
 }
 
 func (c *Client) RandomNode() (n *Node, err error) {
-	ns, err := c.GetAvailableNodes()
+	ns, err := c.GetOpenNodes()
 	if err != nil {
 		return
 	}
@@ -164,7 +163,7 @@ func (c *Client) NodeByManulWeight() (n *Node, err error) {
 	}()
 
 reTry:
-	ns, err := c.GetAvailableOrClosedNodes()
+	ns, err := c.GetAvailableNodes()
 	if err != nil {
 		return
 	}
@@ -231,17 +230,17 @@ func (c *Client) GetNode(nid string) (n *Node, err error) {
 	return
 }
 
-func (c *Client) GetAvailableNodes() (ns []*Node, err error) {
-	return c.GetNodes(NodeStatusAvailable)
+func (c *Client) GetOpenNodes() (ns []*Node, err error) {
+	return c.GetNodes(NodeStatusOpen)
 }
 
-func (c *Client) GetAvailableOrClosedNodes() (ns []*Node, err error) {
+func (c *Client) GetAvailableNodes() (ns []*Node, err error) {
 	cNodes, err := c.GetNodes(NodeStatusClosed)
 	if err != nil {
 		return
 	}
 
-	aNodes, err := c.GetNodes(NodeStatusAvailable)
+	aNodes, err := c.GetNodes(NodeStatusOpen)
 	if err != nil {
 		return
 	}
@@ -252,7 +251,7 @@ func (c *Client) GetAvailableOrClosedNodes() (ns []*Node, err error) {
 
 func (c *Client) GetNodes(status NodeStatus) (ns []*Node, err error) {
 	if len(c.Nodes) == 0 {
-		err = c.refreshNodes()
+		err = c.refreshNodes(1)
 	}
 
 	if len(c.Nodes) == 0 {
@@ -273,7 +272,7 @@ func (c *Client) NewNode(peerId string) (n *Node, err error) {
 		Id:              peerId,
 		Status:          NodeStatusUnavailable,
 		ManualSetWeight: 1,
-		CreateTime:      time.Now(),
+		AccessTime:      time.Now(),
 		UpdateTime:      time.Now(),
 	}
 
@@ -298,21 +297,56 @@ func (c *Client) NewNode(peerId string) (n *Node, err error) {
 	}
 
 	n.Port = port
-	n.Status = NodeStatusAvailable
+	n.Status = NodeStatusOpen
 	n.Client = cli
 	fmt.Println("p2p peer: ", peerId, " port: ", port)
 	return
 }
 
+func (c *Client) CloseNode(id string) error {
+	c.NodesMux[id].Lock()
+	defer c.NodesMux[id].Unlock()
+
+	n := c.Nodes[id]
+	if n.Status != NodeStatusOpen || n.ConnQuota != c.ConnQuotaPerNode {
+		return nil
+	}
+
+	err := c.P2PClose(n.Port, n.Id)
+	if err != nil {
+		return err
+	}
+	n.Status = NodeStatusClosed
+	return nil
+}
+
+func (c *Client) OpenNode(id string) error {
+	c.NodesMux[id].Lock()
+	defer c.NodesMux[id].Unlock()
+
+	n := c.Nodes[id]
+	if n.Status != NodeStatusClosed {
+		return nil
+	}
+
+	n.ConnQuota = c.ConnQuotaPerNode
+	err := c.P2PForward(n.Port, n.Id)
+	if err != nil {
+		return err
+	}
+	n.Status = NodeStatusOpen
+	return nil
+}
+
 func (c *Client) refreshNodesTick() {
-	err := c.refreshNodes()
+	err := c.refreshNodes(c.NodeRefreshWorkers)
 	if err != nil {
 		fmt.Println("refreshNodes err: ", err)
 	}
 	for {
 		select {
 		case <-time.Tick(c.NodeRefreshDuration):
-			err = c.refreshNodes()
+			err = c.refreshNodes(1)
 			if err != nil {
 				fmt.Println("refreshNodes err: ", err)
 			}
@@ -327,9 +361,9 @@ func (c *Client) closeNodesTick() {
 		case <-time.Tick(c.NodeCloseDuration):
 			for _, n := range c.Nodes {
 				c.NodesMux[n.Id].Lock()
-				dur := time.Now().Sub(n.UpdateTime.Add(c.NodeCloseDuration))
-				if n.Status == NodeStatusAvailable && dur.Seconds() > 0 {
-					fmt.Printf("close node id: %s, update time: %s", n.Id, n.UpdateTime)
+				dur := time.Now().Sub(n.AccessTime.Add(c.NodeCloseDuration))
+				if n.Status == NodeStatusOpen && dur.Seconds() > 0 {
+					fmt.Printf("close node id: %s, access time: %s", n.Id, n.AccessTime)
 					n.Status = NodeStatusClosed
 					c.P2PClose(n.Port, n.Id)
 				}
@@ -339,9 +373,9 @@ func (c *Client) closeNodesTick() {
 	}
 }
 
-func (c *Client) refreshNodes() error {
+func (c *Client) refreshNodes(workers int) error {
 	c.NodeRefreshTime = time.Now()
-	sema := make(chan int, c.NodeRefreshWorkers)
+	sema := make(chan int, workers)
 	fmt.Println("nodes refreshing time: ", time.Now())
 
 	ps := c.IpfsNode.Peerstore.Peers()
@@ -356,7 +390,7 @@ func (c *Client) refreshNodes() error {
 			c.NodesRwMux.RLock()
 			n, ok := c.Nodes[id]
 			c.NodesRwMux.RUnlock()
-			if ok && n.Status == NodeStatusAvailable {
+			if ok && n.Status != NodeStatusUnavailable {
 				return
 			}
 
