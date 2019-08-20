@@ -3,8 +3,9 @@
   "server_write_timeout_in_second": 300,
   "server_read_timeout_in_second": 15,
   "node_conf": {
-    "node_refresh_interval_in_second": 300,
+    "node_refresh_interval_in_second": 600,
     "node_request_timeout_in_second": 300,
+    "conn_quota_per_node": 1,
     "block_upload_workers": 8,
     "contract_conf": {
         "client_key_hex": "B2FE66D78810869A64CAAE7B1F2C60CCA3AC2F2261DA2F1DE7040DE3F1FEDA9C",

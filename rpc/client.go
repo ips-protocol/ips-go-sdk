@@ -87,9 +87,9 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.BlockDownloadWorkers = cfg.BlockDownloadWorkers
 
 	if cfg.ConnQuotaPerNode == 0 {
-		cfg.ConnQuotaPerNode = 2
+		cfg.ConnQuotaPerNode = 1
 	}
-	cli.ConnQuotaPerNode = 2
+	cli.ConnQuotaPerNode = cfg.ConnQuotaPerNode
 
 	pubKey, err := GetWalletPubKey(cfg.ContractConf.ClientKeyHex)
 	if err != nil {
