@@ -57,12 +57,12 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.NodesAllocCond = sync.NewCond(new(sync.Mutex))
 
 	if cfg.NodeRefreshIntervalInSecond == 0 {
-		cfg.NodeRefreshIntervalInSecond = 600
+		cfg.NodeRefreshIntervalInSecond = 1800
 	}
 	cli.NodeRefreshDuration = time.Second * time.Duration(cfg.NodeRefreshIntervalInSecond)
 
 	if cfg.NodeRefreshWorkers == 0 {
-		cfg.NodeRefreshWorkers = 10
+		cfg.NodeRefreshWorkers = 5
 	}
 	cli.NodeRefreshWorkers = cfg.NodeRefreshWorkers
 
