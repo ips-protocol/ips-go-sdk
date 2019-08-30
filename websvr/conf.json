@@ -8,7 +8,7 @@
     "conn_quota_per_node": 1,
     "block_upload_workers": 8,
     "contract_conf": {
-        "client_key_hex": "B2FE66D78810869A64CAAE7B1F2C60CCA3AC2F2261DA2F1DE7040DE3F1FEDA9C",
+        "client_key_hex": "3501C7053E5D64E46F0DE1B73F5D56189CEFBF2B8C0DC212A23FEE72108B7B17",
         "contract_node_addr": "https://mainnet.ipweb.top"
     }
   }

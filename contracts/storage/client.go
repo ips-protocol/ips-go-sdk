@@ -73,8 +73,8 @@ func (c *Client) NewUploadJobByClientKey(clientKey string, fileHash string, fsiz
 		return
 	}
 
-	c.PrivateKey(clientKey)
-	transactor.GasPrice = big.NewInt(0)
+	c.ContractConfig.PrivateKey(clientKey)
+	// transactor.GasPrice = big.NewInt(0)
 
 	//c.nonceMux.Lock()
 	//c.nonce++
@@ -86,6 +86,14 @@ func (c *Client) NewUploadJobByClientKey(clientKey string, fileHash string, fsiz
 	value.Mul(value, big.NewInt(shardSize))
 	value.Mul(value, big.NewInt(int64(shards)))
 	transactor.Value = value
+
+	// pubKey := c.ContractConfig.PrivateKey(clientKey).PublicKey
+	// fromAddress := crypto.PubkeyToAddress(pubKey)
+	// nonce, err := c.Client.PendingNonceAt(context.Background(), fromAddress)
+	// if err != nil {
+	// 	return
+	// }
+	// fmt.Println("client.NewUploadJobByClientKey nonce=", nonce)
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
 	tx, err := storageDeposit.NewUploadJob(transactor, fileAddress, big.NewInt(fsize), big.NewInt(int64(shards)), big.NewInt(shardSize))
@@ -115,7 +123,7 @@ func (c *Client) NewUploadJobByClientKey(clientKey string, fileHash string, fsiz
 }
 
 func (c *Client) DeleteFile(fileHash string) error {
-	return c.DeleteFileByClientKey(c.GetClientKey(), fileHash)
+	return c.DeleteFileByClientKey(c.ContractConfig.GetClientKey(), fileHash)
 }
 
 func (c *Client) DeleteFileByClientKey(clientKey string, fileHash string) error {
