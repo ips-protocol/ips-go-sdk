@@ -3,7 +3,6 @@ package file
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -61,20 +60,20 @@ func FileStream(r io.Reader, memThreshold int64) (sf File, fsize int64, err erro
 		_, err = io.Copy(f, b)
 		memBuf.Put(b)
 		if err != nil {
-			sf.Close()
+			_ = sf.Close()
 			return nil, 0, err
 		}
 
 		n, err = io.Copy(f, r)
 		if err != nil {
-			sf.Close()
+			_ = sf.Close()
 			return nil, 0, err
 		}
 		fsize += n
 
 		_, err = f.Seek(0, 0)
 		if err != nil {
-			sf.Close()
+			_ = sf.Close()
 		}
 		return sf, fsize, err
 	}
@@ -119,11 +118,12 @@ func (rc bytesFile) Write(b []byte) (n int, err error) {
 	return
 }
 
-func newSectionFiles(r io.ReaderAt, sectionSize int64, sectionCount int) []File {
+func newSectionFiles(fh File, sectionSize int64, sectionCount int) []File {
 	var fhs []File
 	for i := 0; i < sectionCount; i++ {
 		fh := sectionFile{
-			SectionReader: io.NewSectionReader(r, int64(i)*sectionSize, sectionSize),
+			fh: fh,
+			SectionReader: io.NewSectionReader(fh, int64(i)*sectionSize, sectionSize),
 		}
 		fhs = append(fhs, fh)
 	}
@@ -131,11 +131,13 @@ func newSectionFiles(r io.ReaderAt, sectionSize int64, sectionCount int) []File 
 }
 
 type sectionFile struct {
+	fh File
 	*io.SectionReader
 	closer func() error
 }
 
 func (sr sectionFile) Close() error {
+	_ = sr.fh.Close()
 	return nil
 }
 
@@ -172,13 +174,8 @@ type FileCloser struct {
 func (r *FileCloser) Close() error {
 	name := r.File.Name()
 	err := r.File.Close()
-	fmt.Println("file: ", name, "close err:", err)
 	if err != nil {
 		return err
 	}
-
-	err = os.Remove(name)
-	fmt.Println("file: ", name, "remove err:", err)
-
-	return err
+	return os.Remove(name)
 }

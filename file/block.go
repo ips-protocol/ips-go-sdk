@@ -48,18 +48,20 @@ func NewBlockMgr(dataShards, parShards int, o ...reedsolomon.Option) (mgr *Block
 }
 
 func (m *BlockMgr) RsEncode(r io.Reader, memThreshold int64) (fhs []File, err error) {
+	fh, fsize, err := FileStream(r, memThreshold)
+	if err != nil {
+		return
+	}
+
 	defer func() {
 		if err == nil {
 			return
 		}
 
-		Files(fhs).Close()
+		_ = fh.Close()
+		_ = Files(fhs).Close()
 	}()
 
-	fh, fsize, err := FileStream(r, memThreshold)
-	if err != nil {
-		return
-	}
 	if fsize < memThreshold {
 		data, err := ioutil.ReadAll(fh)
 		if err != nil {
@@ -107,7 +109,10 @@ func (m *BlockMgr) RsEncode(r io.Reader, memThreshold int64) (fhs []File, err er
 	}
 	fhs = append(dataFhs, parFhs...)
 	for i := range fhs {
-		fhs[i].Seek(0, 0)
+		_, err = fhs[i].Seek(0, 0)
+		if err != nil {
+			return
+		}
 	}
 
 	return
@@ -122,7 +127,7 @@ func (m *BlockMgr) Split2(fh File, size int64) (fhs []File, err error) {
 			return
 		}
 
-		Files(fhs).Close()
+		_ = Files(fhs).Close()
 	}()
 
 	shards := m.DataShards + m.ParShards
@@ -158,7 +163,7 @@ func (m *BlockMgr) Split(data io.Reader, size int64) (fhs []File, err error) {
 			if fhs[i] == nil {
 				continue
 			}
-			fhs[i].Close()
+			_ = fhs[i].Close()
 		}
 	}()
 
@@ -210,7 +215,10 @@ func (m *BlockMgr) ECShards(reader io.Reader, size int64) (shardsRdr []io.Reader
 		if i < m.DataShards {
 			r := io.LimitReader(data, perShard)
 			dataBuf := &bytes.Buffer{}
-			io.Copy(buf, io.TeeReader(r, dataBuf))
+			_, err = io.Copy(buf, io.TeeReader(r, dataBuf))
+			if err != nil {
+				return
+			}
 			rs[i] = dataBuf
 			shardsRdr[i] = buf
 		} else {

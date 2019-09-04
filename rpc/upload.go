@@ -179,7 +179,10 @@ func (c *Client) upload(fhs []file.File, meta metafile.Meta) error {
 			mr := bytes.NewBuffer(meta.Encode(id))
 			var r io.Reader
 			if retry != 0 {
-				fhs[id].Seek(0, 0)
+				_, err := fhs[id].Seek(0, 0)
+				if err != nil {
+					return
+				}
 			}
 			r = io.MultiReader(mr, fhs[id])
 

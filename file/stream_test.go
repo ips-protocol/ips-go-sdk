@@ -29,7 +29,10 @@ func Test_FileStream(t *testing.T) {
 			t.Error(err)
 		}
 
-		fh.Seek(0, 0)
+		_, err = fh.Seek(0, 0)
+		if err != nil {
+			panic(err)
+		}
 		fileContent, err := ioutil.ReadAll(fh)
 		if err != nil {
 			t.Error(err)
@@ -46,6 +49,9 @@ func Test_FileStream(t *testing.T) {
 	}
 
 	fCheck(fh, fi.Size())
-	fh.Seek(0, 0)
+	_, err = fh.Seek(0, 0)
+	if err != nil {
+		panic(err)
+	}
 	fCheck(fh, fi.Size()-1)
 }
