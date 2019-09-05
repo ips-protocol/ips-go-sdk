@@ -21,7 +21,7 @@ var ErrContractNotFound = errors.New("no contract code at given address")
 
 const (
 	P2pProtocl        = "/sys/http"
-	NodeWeightInfoUrl = "http://teck.qiniudn.com/nodes.json?v=1"
+	NodeWeightInfoUrl = "https://www.ipweb.top/sdk/nodes.json?v=1"
 )
 
 type Client struct {
@@ -57,7 +57,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.NodesAllocCond = sync.NewCond(new(sync.Mutex))
 
 	if cfg.NodeRefreshIntervalInSecond == 0 {
-		cfg.NodeRefreshIntervalInSecond = 1800
+		cfg.NodeRefreshIntervalInSecond = 180
 	}
 	cli.NodeRefreshDuration = time.Second * time.Duration(cfg.NodeRefreshIntervalInSecond)
 
@@ -67,7 +67,7 @@ func NewClient(cfg conf.Config) (cli *Client, err error) {
 	cli.NodeRefreshWorkers = cfg.NodeRefreshWorkers
 
 	if cfg.NodeCloseIntervalInSecond == 0 {
-		cfg.NodeRefreshIntervalInSecond = 3600
+		cfg.NodeCloseIntervalInSecond = 3600
 	}
 	cli.NodeCloseDuration = time.Second * time.Duration(cfg.NodeCloseIntervalInSecond)
 

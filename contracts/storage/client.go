@@ -74,7 +74,7 @@ func (c *Client) NewUploadJobByClientKey(clientKey string, fileHash string, fsiz
 	}
 
 	c.ContractConfig.PrivateKey(clientKey)
-	// transactor.GasPrice = big.NewInt(0)
+	transactor.GasPrice = big.NewInt(1)
 
 	//c.nonceMux.Lock()
 	//c.nonce++
@@ -133,7 +133,10 @@ func (c *Client) DeleteFileByClientKey(clientKey string, fileHash string) error 
 	}
 
 	fileAddress := common.BytesToAddress(crypto.Keccak256([]byte(fileHash)))
+	
 	transactor := c.NewKeyedTransactor(clientKey)
+	transactor.GasPrice = big.NewInt(1)
+
 	tx, err := storageDeposit.DeleteFile(transactor, fileAddress)
 	if err != nil {
 		return err

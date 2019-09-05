@@ -3,7 +3,7 @@
   "server_write_timeout_in_second": 300,
   "server_read_timeout_in_second": 15,
   "node_conf": {
-    "node_refresh_interval_in_second": 600,
+    "node_refresh_interval_in_second": 180,
     "node_request_timeout_in_second": 300,
     "conn_quota_per_node": 1,
     "block_upload_workers": 8,
