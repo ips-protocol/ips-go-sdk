@@ -50,7 +50,7 @@ func FileStream(r io.Reader, memThreshold int64) (sf File, fsize int64, err erro
 	fsize = n
 
 	if n > memThreshold {
-		f, err := ioutil.TempFile("", "")
+		f, err := ioutil.TempFile("", "IPFS-")
 		if err != nil {
 			memBuf.Put(b)
 			return nil, 0, err
@@ -122,7 +122,7 @@ func newSectionFiles(fh File, sectionSize int64, sectionCount int) []File {
 	var fhs []File
 	for i := 0; i < sectionCount; i++ {
 		fh := sectionFile{
-			fh: fh,
+			fh:            fh,
 			SectionReader: io.NewSectionReader(fh, int64(i)*sectionSize, sectionSize),
 		}
 		fhs = append(fhs, fh)
@@ -158,7 +158,7 @@ func NewTmpFiles(n int) (fhs []File, err error) {
 }
 
 func NewTmpFile() (fh File, err error) {
-	tmpFh, err := ioutil.TempFile("", "")
+	tmpFh, err := ioutil.TempFile("", "IPFS-")
 	if err != nil {
 		return
 	}
