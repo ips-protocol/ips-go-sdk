@@ -39,6 +39,10 @@ func (c *Client) GetCid(rdr io.Reader) (cid string, err error) {
 }
 
 func (c *Client) GetCidByClientKey(clientKey string, rdr io.Reader) (cid string, err error) {
+	return GetCidByClientKey(clientKey, rdr)
+}
+
+func GetCidByClientKey(clientKey string, rdr io.Reader) (cid string, err error) {
 	h := sha256.New()
 	pubKey, err := GetWalletPubKey(clientKey)
 	if err != nil {
