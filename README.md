@@ -1,2 +1,2 @@
 # go-sdk
-IPWeb SDK for GO Lang
+IPS SDK for GO Lang
